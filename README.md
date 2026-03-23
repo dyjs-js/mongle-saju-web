@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 몽글사주 웹 (Mongle Saju Web)
 
-## Getting Started
+AI 기반 사주풀이 & 고민상담 서비스  
+Next.js + GPT-4o + Supabase
 
-First, run the development server:
+---
+
+## 주요 기능
+
+- **사주 정보 입력**: 이름, 생년월일, 출생시, 양력/음력, 성별, 고민 선택(전체운/연애/재회/결혼/이직)
+- **고민 맞춤형 AI 풀이**: GPT-4o가 선택한 고민(예: 전남친/재회/이직 등)에 80% 이상 집중하여 명리학적으로 상세 분석
+- **결과 저장 및 조회**: Supabase DB에 풀이 결과 저장, 로그인 시 언제든 재확인 가능
+- **카카오톡 공유 & 이미지 저장**: 결과를 카카오톡으로 공유하거나 이미지로 저장 가능 (바이럴 최적화)
+- **모바일 퍼스트 UI**: 감성적인 디자인, 반응형 지원
+
+---
+
+## 개발 환경
+
+- **Next.js** (App Router, Server Actions)
+- **TypeScript**
+- **Supabase** (Auth, DB)
+- **OpenAI GPT-4o**
+- **html2canvas** (이미지 저장)
+- **Tailwind CSS**
+
+---
+
+## 실행 방법
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- [http://localhost:3000](http://localhost:3000) 접속
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 폴더 구조
 
-## Learn More
+- `src/app/` — 페이지 및 라우트
+- `src/components/` — UI 컴포넌트
+- `src/services/` — 사주 계산, OpenAI 연동
+- `src/lib/supabase/` — Supabase 클라이언트
+- `src/types/` — 타입 정의
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 배포
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Vercel, Netlify 등 Next.js 지원 플랫폼 권장
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 라이선스
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
