@@ -98,25 +98,34 @@ export function renderLines(lines: string[]) {
     }
     if (line.startsWith("### ")) {
       return (
-        <h3
-          key={i}
-          className="text-sm font-semibold mt-4 mb-1"
-          style={{ color: "#7C5CBF" }}
-        >
-          {line.replace(/^### /, "")}
-        </h3>
+        <div key={i} className="flex items-center gap-2 mt-5 mb-1.5">
+          <div
+            className="h-px flex-1"
+            style={{ background: "rgba(196,160,255,0.30)" }}
+          />
+          <span
+            className="text-[13px] font-bold tracking-wider px-2"
+            style={{ color: "#A57CFF" }}
+          >
+            {line.replace(/^### /, "")}
+          </span>
+          <div
+            className="h-px flex-1"
+            style={{ background: "rgba(196,160,255,0.30)" }}
+          />
+        </div>
       );
     }
     if (line.startsWith("> ")) {
       return (
         <blockquote
           key={i}
-          className="my-2 pl-4 py-2 text-sm italic rounded-r-lg"
+          className="my-1.5 pl-4 py-2.5 text-sm rounded-xl"
           style={{
             borderLeft: "3px solid #C4A0FF",
-            background: "rgba(196,160,255,0.08)",
-            color: "#7C5CBF",
-            lineHeight: 1.85,
+            background: "rgba(196,160,255,0.07)",
+            color: "#6B54A0",
+            lineHeight: 1.9,
           }}
         >
           {renderInline(line.replace(/^> /, ""))}
@@ -125,17 +134,21 @@ export function renderLines(lines: string[]) {
     }
     if (line.startsWith("- ")) {
       return (
-        <li
-          key={i}
-          className="text-sm ml-1 list-none flex gap-2"
-          style={{ color: "#4A4A6A", lineHeight: 1.85 }}
-        >
-          <span style={{ color: "#C4A0FF" }}>•</span>
-          {renderInline(line.replace(/^- /, ""))}
-        </li>
+        <div key={i} className="flex gap-2.5 items-start py-0.5">
+          <span
+            className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ background: "#C4A0FF" }}
+          />
+          <span
+            className="text-sm flex-1"
+            style={{ color: "#4A4A6A", lineHeight: 1.9 }}
+          >
+            {renderInline(line.replace(/^- /, ""))}
+          </span>
+        </div>
       );
     }
-    if (line.trim() === "") return <div key={i} className="h-3" />;
+    if (line.trim() === "") return <div key={i} className="h-2.5" />;
 
     const numbered = line.match(NUMBERED_ITEM_RE);
     if (numbered) {
@@ -143,32 +156,34 @@ export function renderLines(lines: string[]) {
       return (
         <div
           key={i}
-          className="rounded-2xl px-5 py-4 mt-1"
+          className="rounded-2xl px-4 py-3.5 mt-1"
           style={{
-            background: "rgba(196,160,255,0.08)",
+            background: "rgba(196,160,255,0.07)",
             border: "1px solid rgba(196,160,255,0.18)",
           }}
         >
-          <div className="flex items-baseline gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-1.5">
             <span
-              className="text-xs font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+              className="text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0"
               style={{ background: "rgba(165,124,255,0.15)", color: "#A57CFF" }}
             >
               {num}
             </span>
             <span
-              className="text-sm font-bold leading-snug"
-              style={{ color: "#6B46C1" }}
+              className="text-[13px] font-bold"
+              style={{ color: "#5B3FA0" }}
             >
               {title.replace(/:$/, "")}
             </span>
           </div>
-          <p
-            className="text-sm pl-[28px]"
-            style={{ color: "#4A4A6A", lineHeight: 1.85 }}
-          >
-            {renderInline(body)}
-          </p>
+          {body && (
+            <p
+              className="text-sm pl-7"
+              style={{ color: "#4A4A6A", lineHeight: 1.9 }}
+            >
+              {renderInline(body)}
+            </p>
+          )}
         </div>
       );
     }
@@ -176,8 +191,8 @@ export function renderLines(lines: string[]) {
     return (
       <p
         key={i}
-        className="text-sm"
-        style={{ color: "#4A4A6A", lineHeight: 1.85 }}
+        className="text-[14px]"
+        style={{ color: "#3D3560", lineHeight: 1.95 }}
       >
         {renderInline(line)}
       </p>
@@ -199,15 +214,35 @@ export function renderIntro(lines: string[]) {
         </h1>
       );
     }
+    if (line.startsWith("### ")) {
+      return (
+        <div key={i} className="flex items-center gap-2 mt-5 mb-1.5">
+          <div
+            className="h-px flex-1"
+            style={{ background: "rgba(196,160,255,0.30)" }}
+          />
+          <span
+            className="text-[13px] font-bold tracking-wider px-2"
+            style={{ color: "#A57CFF" }}
+          >
+            {line.replace(/^### /, "")}
+          </span>
+          <div
+            className="h-px flex-1"
+            style={{ background: "rgba(196,160,255,0.30)" }}
+          />
+        </div>
+      );
+    }
     if (line.startsWith("> ")) {
       return (
         <blockquote
           key={i}
-          className="pl-3 py-2 text-sm italic leading-relaxed rounded-r-lg mb-1"
+          className="pl-3 py-2.5 text-sm leading-relaxed rounded-xl mb-1"
           style={{
             borderLeft: "3px solid #C4A0FF",
-            background: "rgba(196,160,255,0.08)",
-            color: "#7C5CBF",
+            background: "rgba(196,160,255,0.07)",
+            color: "#6B54A0",
           }}
         >
           {renderInline(line.replace(/^> /, ""))}
@@ -223,32 +258,34 @@ export function renderIntro(lines: string[]) {
       return (
         <div
           key={i}
-          className="rounded-2xl px-5 py-4"
+          className="rounded-2xl px-4 py-3.5 mt-1"
           style={{
-            background: "rgba(196,160,255,0.08)",
+            background: "rgba(196,160,255,0.07)",
             border: "1px solid rgba(196,160,255,0.18)",
           }}
         >
-          <div className="flex items-baseline gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-1.5">
             <span
-              className="text-xs font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+              className="text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0"
               style={{ background: "rgba(165,124,255,0.15)", color: "#A57CFF" }}
             >
               {num}
             </span>
             <span
-              className="text-sm font-bold leading-snug"
-              style={{ color: "#6B46C1" }}
+              className="text-[13px] font-bold"
+              style={{ color: "#5B3FA0" }}
             >
               {title.replace(/:$/, "")}
             </span>
           </div>
-          <p
-            className="text-sm pl-[28px]"
-            style={{ color: "#4A4A6A", lineHeight: 1.85 }}
-          >
-            {renderInline(body)}
-          </p>
+          {body && (
+            <p
+              className="text-sm pl-7"
+              style={{ color: "#4A4A6A", lineHeight: 1.9 }}
+            >
+              {renderInline(body)}
+            </p>
+          )}
         </div>
       );
     }
@@ -256,8 +293,8 @@ export function renderIntro(lines: string[]) {
     return (
       <p
         key={i}
-        className="text-sm"
-        style={{ color: "#4A4A6A", lineHeight: 1.85 }}
+        className="text-[14px]"
+        style={{ color: "#3D3560", lineHeight: 1.95 }}
       >
         {renderInline(line)}
       </p>
@@ -277,56 +314,65 @@ function AccordionItem({
   onToggle: () => void;
   locked?: boolean;
 }) {
-  const previewLines = locked ? section.lines.slice(0, 3) : [];
+  const previewLines = locked
+    ? section.lines.filter((l) => l.trim()).slice(0, 2)
+    : [];
+
+  // 이모지와 텍스트 분리
+  const emojiMatch = section.title.match(
+    /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/u,
+  );
+  const emoji = emojiMatch?.[0] ?? null;
+  const titleText = emoji
+    ? section.title.replace(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)\s*/u, "")
+    : section.title;
 
   return (
     <div
-      className="rounded-2xl overflow-hidden transition-all"
+      className="rounded-2xl overflow-hidden"
       style={
         locked
           ? {
-              border: "1px solid rgba(165,124,255,0.30)",
+              border: "1px solid rgba(165,124,255,0.22)",
               background:
-                "linear-gradient(145deg, rgba(196,160,255,0.10) 0%, rgba(165,124,255,0.06) 100%)",
-              boxShadow: "0 2px 12px rgba(165,124,255,0.08)",
+                "linear-gradient(145deg, rgba(243,238,255,0.80) 0%, rgba(238,243,255,0.60) 100%)",
             }
           : {
               border: isOpen
-                ? "1px solid rgba(165,124,255,0.45)"
-                : "1px solid rgba(196,160,255,0.25)",
-              background: isOpen
-                ? "rgba(255,255,255,0.95)"
-                : "rgba(255,255,255,0.70)",
-              boxShadow: isOpen ? "0 4px 20px rgba(165,124,255,0.12)" : "none",
+                ? "1px solid rgba(165,124,255,0.40)"
+                : "1px solid rgba(196,160,255,0.22)",
+              background: isOpen ? "#fff" : "rgba(255,255,255,0.75)",
+              boxShadow: isOpen ? "0 4px 20px rgba(165,124,255,0.10)" : "none",
+              transition: "box-shadow 0.3s",
             }
       }
     >
       <button
         type="button"
         onClick={locked ? undefined : onToggle}
-        className="w-full flex items-center justify-between px-4 py-3.5 text-left transition-all"
+        className="w-full flex items-center gap-3 px-4 py-4 text-left"
         style={{ cursor: locked ? "default" : "pointer" }}
       >
+        {/* 이모지 아이콘 */}
+        <span className="text-base leading-none shrink-0 w-6 text-center">
+          {locked ? "🔒" : (emoji ?? "✦")}
+        </span>
         <span
-          className="text-sm font-bold flex items-center gap-2"
+          className="flex-1 text-[14px] font-bold"
           style={{ color: locked ? "#9B7FD4" : "#2D3142" }}
         >
-          {locked && <span>🔒</span>}
-          {section.title}
+          {titleText}
         </span>
         {locked ? (
           <span
-            className="text-xs font-semibold px-2.5 py-1 rounded-full"
-            style={{
-              background: "linear-gradient(135deg, #C4A0FF 0%, #A57CFF 100%)",
-              color: "#fff",
-            }}
+            className="text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0"
+            style={{ background: "rgba(165,124,255,0.15)", color: "#A57CFF" }}
           >
             유료 공개
           </span>
         ) : (
           <span
-            className="text-lg transition-transform duration-300 select-none"
+            className="text-base select-none shrink-0 transition-transform duration-300"
             style={{
               display: "inline-block",
               transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
@@ -341,16 +387,16 @@ function AccordionItem({
       {locked && previewLines.some((l) => l.trim()) && (
         <div
           className="relative px-4 pb-5 overflow-hidden"
-          style={{ maxHeight: "90px" }}
+          style={{ maxHeight: "80px" }}
         >
-          <div className="flex flex-col gap-2 opacity-60 select-none pointer-events-none">
+          <div className="flex flex-col gap-1 opacity-50 select-none pointer-events-none">
             {renderLines(previewLines)}
           </div>
           <div
-            className="absolute inset-x-0 bottom-0 h-14"
+            className="absolute inset-x-0 bottom-0 h-12"
             style={{
               background:
-                "linear-gradient(to bottom, transparent 0%, rgba(237,228,255,0.95) 100%)",
+                "linear-gradient(to bottom, transparent 0%, rgba(241,236,255,0.98) 100%)",
             }}
           />
         </div>
@@ -359,12 +405,16 @@ function AccordionItem({
       {!locked && (
         <div
           style={{
-            maxHeight: isOpen ? "2000px" : "0px",
+            maxHeight: isOpen ? "3000px" : "0px",
             overflow: "hidden",
-            transition: "max-height 0.35s ease",
+            transition: "max-height 0.4s ease",
           }}
         >
-          <div className="px-4 pb-5 flex flex-col gap-2.5">
+          <div
+            className="px-4 pb-5 flex flex-col gap-1.5"
+            style={{ borderTop: "1px solid rgba(196,160,255,0.12)" }}
+          >
+            <div className="pt-2.5" />
             {renderLines(section.lines)}
           </div>
         </div>
@@ -385,9 +435,9 @@ export function AccordionResult({
   const [openIndex, setOpenIndex] = useState<number>(0);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       {intro.some((l) => l.trim()) && (
-        <div className="px-1 pb-1">{renderIntro(intro)}</div>
+        <div className="flex flex-col gap-1.5 pb-1">{renderIntro(intro)}</div>
       )}
       {sections.map((section, i) => {
         const locked = !isPaid && i > 0;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -28,10 +28,60 @@ function ResultModal({
 }) {
   const snap = result.input_snapshot;
   const concerns = (snap?.concerns ?? []) as SajuConcern[];
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [saving, setSaving] = useState(false);
 
   // 배경 클릭 시 닫기
   function handleBackdrop(e: React.MouseEvent) {
     if (e.target === e.currentTarget) onClose();
+  }
+
+  function handleKakaoShare() {
+    const url = window.location.origin + "/saju/result";
+    const kakaoLink = `https://story.kakao.com/share?url=${encodeURIComponent(url)}`;
+    const w = window as unknown as {
+      Kakao?: {
+        isInitialized: () => boolean;
+        Share: { sendDefault: (o: unknown) => void };
+      };
+    };
+    if (w.Kakao?.isInitialized()) {
+      w.Kakao.Share.sendDefault({
+        objectType: "feed",
+        content: {
+          title: `🌙 ${snap?.name ?? ""}님의 몽글사주 풀이`,
+          description: "AI가 분석한 나의 사주풀이를 확인해보세요!",
+          imageUrl: `${window.location.origin}/og-image.png`,
+          link: { mobileWebUrl: url, webUrl: url },
+        },
+        buttons: [
+          { title: "나도 사주 보기", link: { mobileWebUrl: url, webUrl: url } },
+        ],
+      });
+    } else {
+      window.open(kakaoLink, "_blank");
+    }
+  }
+
+  async function handleSaveImage() {
+    if (!contentRef.current) return;
+    setSaving(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(contentRef.current, {
+        backgroundColor: "#F8F4FF",
+        scale: 2,
+        useCORS: true,
+      });
+      const link = document.createElement("a");
+      link.download = `몽글사주_${snap?.name ?? "결과"}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch {
+      alert("이미지 저장 중 오류가 발생했어요.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -84,6 +134,7 @@ function ResultModal({
         >
           {/* 결과 카드 헤더 */}
           <div
+            ref={contentRef}
             className="rounded-3xl p-5 mb-3"
             style={{
               background: "rgba(255,255,255,0.92)",
@@ -117,15 +168,41 @@ function ResultModal({
 
         {/* 하단 버튼 */}
         <div
-          className="px-5 py-4 border-t"
+          className="px-4 py-4 flex flex-col gap-2 border-t"
           style={{ borderColor: "rgba(196,160,255,0.2)" }}
         >
+          <div className="flex gap-2">
+            <button
+              onClick={handleKakaoShare}
+              className="flex-1 flex items-center justify-center gap-1.5 font-bold py-3.5 rounded-2xl transition-all active:scale-95 text-sm"
+              style={{
+                background: "#FEE500",
+                color: "#3A1D1D",
+                boxShadow: "0 2px 12px rgba(254,229,0,0.40)",
+              }}
+            >
+              <span className="text-base">💬</span>카카오 공유
+            </button>
+            <button
+              onClick={handleSaveImage}
+              disabled={saving}
+              className="flex-1 flex items-center justify-center gap-1.5 font-bold py-3.5 rounded-2xl transition-all active:scale-95 disabled:opacity-60 text-sm"
+              style={{
+                background: "linear-gradient(135deg, #C4A0FF 0%, #A57CFF 100%)",
+                color: "#fff",
+                boxShadow: "0 2px 12px rgba(165,124,255,0.35)",
+              }}
+            >
+              <span className="text-base">🖼️</span>
+              {saving ? "저장 중..." : "이미지 저장"}
+            </button>
+          </div>
           <button
             onClick={onClose}
-            className="w-full font-bold py-3.5 rounded-2xl text-sm"
+            className="w-full font-bold py-3 rounded-2xl text-sm transition-all"
             style={{
-              background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
-              color: "#fff",
+              background: "rgba(196,160,255,0.12)",
+              color: "#7C5CBF",
             }}
           >
             닫기
