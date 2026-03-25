@@ -9,6 +9,23 @@ export interface Section {
 }
 
 // ── 마크다운 → 섹션 배열 파싱 ─────────────────────────────────────
+
+/** GPT가 가끔 섹션 내부에 raw 마크다운 기호를 남기는 경우 정리 */
+function sanitizeLine(line: string): string {
+  // 이미 처리되는 패턴(##, ###, >, -, ---) 은 그대로 통과
+  if (
+    line.startsWith("## ") ||
+    line.startsWith("### ") ||
+    line.startsWith("> ") ||
+    line.startsWith("- ") ||
+    line.trim() === "---"
+  )
+    return line;
+  // # 으로만 시작하는 줄 (h1, h4 등) → # 기호 제거
+  if (/^#{1,6}\s/.test(line)) return line.replace(/^#{1,6}\s+/, "");
+  // **bold** 는 renderInline에서 처리하므로 통과
+  return line;
+}
 export function parseIntoSections(text: string): {
   intro: string[];
   sections: Section[];
@@ -18,7 +35,8 @@ export function parseIntoSections(text: string): {
   const sections: Section[] = [];
   let current: Section | null = null;
 
-  for (const line of lines) {
+  for (const rawLine of lines) {
+    const line = sanitizeLine(rawLine);
     if (line.startsWith("## ")) {
       if (current) sections.push(current);
       current = { title: line.replace(/^## /, ""), lines: [] };
@@ -58,8 +76,8 @@ export function renderInline(text: string): React.ReactNode {
         <mark
           key={match.index}
           style={{
-            background: "rgba(165,124,255,0.13)",
-            color: "#6B46C1",
+            background: "rgba(165,124,255,0.10)",
+            color: "#5B3FA0",
             fontWeight: 700,
             borderRadius: "3px",
             padding: "0 2px",
@@ -134,7 +152,7 @@ export function renderLines(lines: string[]) {
     }
     if (line.startsWith("- ")) {
       return (
-        <div key={i} className="flex gap-2.5 items-start py-0.5">
+        <div key={i} className="flex gap-2.5 items-start py-1">
           <span
             className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0"
             style={{ background: "#C4A0FF" }}
@@ -148,7 +166,7 @@ export function renderLines(lines: string[]) {
         </div>
       );
     }
-    if (line.trim() === "") return <div key={i} className="h-2.5" />;
+    if (line.trim() === "") return <div key={i} className="h-4" />;
 
     const numbered = line.match(NUMBERED_ITEM_RE);
     if (numbered) {
@@ -156,7 +174,7 @@ export function renderLines(lines: string[]) {
       return (
         <div
           key={i}
-          className="rounded-2xl px-4 py-3.5 mt-1"
+          className="rounded-2xl px-4 py-3.5 mt-2"
           style={{
             background: "rgba(196,160,255,0.07)",
             border: "1px solid rgba(196,160,255,0.18)",
@@ -191,7 +209,7 @@ export function renderLines(lines: string[]) {
     return (
       <p
         key={i}
-        className="text-[14px]"
+        className="text-[14px] mb-3"
         style={{ color: "#3D3560", lineHeight: 1.95 }}
       >
         {renderInline(line)}
@@ -293,7 +311,7 @@ export function renderIntro(lines: string[]) {
     return (
       <p
         key={i}
-        className="text-[14px]"
+        className="text-[14px] mb-3"
         style={{ color: "#3D3560", lineHeight: 1.95 }}
       >
         {renderInline(line)}
@@ -411,7 +429,7 @@ function AccordionItem({
           }}
         >
           <div
-            className="px-4 pb-5 flex flex-col gap-1.5"
+            className="px-4 pb-5 flex flex-col gap-3"
             style={{ borderTop: "1px solid rgba(196,160,255,0.12)" }}
           >
             <div className="pt-2.5" />
