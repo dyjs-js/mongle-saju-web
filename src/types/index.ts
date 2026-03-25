@@ -17,6 +17,12 @@ export type SajuConcern =
   | "결혼운"
   | "이직·취업운";
 
+export type RelationshipStatus =
+  | "솔로예요"
+  | "연애 중이에요"
+  | "짝사랑 중이에요"
+  | "기혼이에요";
+
 export interface SajuInputForm {
   name: string;
   birth_date: string; // 'YYYY-MM-DD'
@@ -25,6 +31,7 @@ export interface SajuInputForm {
   gender: "male" | "female";
   birth_time_unknown: boolean; // 태어난 시간 모름 여부
   concerns: SajuConcern[]; // 가장 궁금한 고민 (복수 선택)
+  relationship_status?: RelationshipStatus; // 연애/재회/결혼운 선택 시
 }
 
 // ─── 사주 8자 (사주팔자) ───────────────────────────────────────────

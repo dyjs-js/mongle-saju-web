@@ -115,5 +115,13 @@ export function formatSajuForPrompt(
   } else {
     lines.push(`- 시주(時柱): 알 수 없음`);
   }
+
+  if (input.concerns && input.concerns.length > 0) {
+    lines.push(``, `고민 키워드: ${input.concerns.join(", ")}`);
+  }
+  if (input.relationship_status) {
+    lines.push(`현재 연애 상황: ${input.relationship_status}`);
+  }
+
   return lines.join("\n");
 }

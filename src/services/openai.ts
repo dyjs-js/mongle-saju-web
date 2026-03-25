@@ -37,7 +37,90 @@ const FREE_SYSTEM_PROMPT = (year: number, month: number) =>
 - **${year - 1}년 이하 과거 연도 언급 절대 금지.**
 - 마지막은 "더 자세한 인생 서사와 3년 치 미래운이 궁금하다면?"으로 끝내세요.`;
 
-const PAID_SYSTEM_PROMPT = (year: number, month: number) =>
+// concern별 섹션 분량 및 세부 지침 정의
+const CONCERN_SECTION_MAP: Record<
+  string,
+  { sectionTitle: string; volume: string; detail: string }
+> = {
+  연애운: {
+    sectionTitle: "💕 인연의 온도 (연애운 심층 분석)",
+    volume: "1,000자 이상",
+    detail:
+      "유저의 현재 연애 상황({현재상황})을 반드시 전제로 분석하세요. 썸 상대와의 궁합, 올해 만날 인연의 외모·성격·직업 특징, 연애를 방해하는 사주적 요소와 극복법, 고백/만남에 유리한 구체적 시기(월)까지 서술하세요.",
+  },
+  재회운: {
+    sectionTitle: "💕 인연의 온도 (재회운 심층 분석)",
+    volume: "1,000자 이상",
+    detail:
+      "유저의 현재 상황({현재상황})을 전제로, 전 연인과의 재회 가능성을 명리학적으로 분석하세요. 재회 가능 시기, 먼저 연락해도 되는 시점, 재회 시 주의점, 재회가 어렵다면 새 인연이 오는 시기를 구체적 월/계절과 함께 서술하세요.",
+  },
+  결혼운: {
+    sectionTitle: "💕 인연의 온도 (결혼운 심층 분석)",
+    volume: "1,000자 이상",
+    detail:
+      "유저의 현재 상황({현재상황})을 전제로, 결혼 적령기·배우자의 사주 특성(외모·성격·직업군)·서두를지 기다릴지 여부·결혼 전 반드시 확인해야 할 궁합 포인트·프러포즈/혼담이 들어올 구체적 시기(월)까지 명리학적으로 풀어주세요.",
+  },
+  "이직·취업운": {
+    sectionTitle: "💰 풍요의 기운 (이직·취업운 심층 분석)",
+    volume: "1,000자 이상",
+    detail:
+      "올해 이직·취업에 유리한 시기(월), 어울리는 직종과 회사 분위기, 연봉 협상 타이밍, 현 직장을 버티는 게 나을지 나가는 게 나을지 구체적 판단 기준, 이직 후 첫 3개월의 기운까지 서술하세요.",
+  },
+};
+
+// concern에 따라 PAID_SYSTEM_PROMPT의 섹션 분량을 동적으로 조정
+function buildSectionGuide(
+  year: number,
+  concerns: SajuInputForm["concerns"],
+): string {
+  const focused = (concerns ?? []).filter((c) => c !== "전체운");
+
+  // 전체운이거나 concern 없음 — 기본 균형 배분
+  if (focused.length === 0) {
+    return `[섹션별 필수 구성 및 분량]
+1. 🌸 {이름}님만을 위한 인생 총운 (200자)
+2. 🌱 초년운: {월주}와 {년주}로 보는 환경과 감정의 뿌리 (400자)
+3. 🌿 현재운: **현재 ${year}년**을 살아가는 이 분의 에너지와 갈등 해결책 (500자)
+4. 💕 인연의 온도: {일주} 기반의 연애 성향, 올해 인연운 (500자)
+5. 💰 풍요의 기운: 재물 창고가 열리는 달과 이직/직업운 (500자)
+6. 🔮 미래운: **향후 3년(${year}년 하반기~${year + 2}년 상반기)**의 연도별 구체적 서사 (700자)
+7. ⚠️ 운의 경고: 조심해야 할 특정 달과 피해야 할 행동/인물 (300자)
+8. 💌 다정한 한마디: 유저의 삶을 껴안아주는 진심 어린 위로 (200자)`;
+  }
+
+  // concern별 해당 섹션은 분량을 대폭 확대, 나머지는 축소
+  const concernSections = focused
+    .map((c) => {
+      const m = CONCERN_SECTION_MAP[c];
+      if (!m) return null;
+      return `4-${c}. ${m.sectionTitle} (${m.volume}) ← ⭐ 핵심 섹션\n   [세부 지침] ${m.detail}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  // 인연 관련 concern이 있으면 기본 인연 섹션 숫자를 concern 섹션으로 대체
+  const hasLoveConern = focused.some((c) =>
+    ["연애운", "재회운", "결혼운"].includes(c),
+  );
+  const hasJobConcern = focused.includes("이직·취업운");
+
+  return `[섹션별 필수 구성 및 분량]
+⚠️ 이 고객의 핵심 고민은 **${focused.join(", ")}**입니다. 아래 핵심 섹션에 전체 분량의 50% 이상을 집중하세요.
+
+1. 🌸 {이름}님만을 위한 인생 총운 (150자 — 간략히)
+2. 🌱 초년운: {월주}와 {년주}로 보는 환경과 감정의 뿌리 (300자 — 핵심만)
+3. 🌿 현재운: ${year}년 에너지와 갈등 해결책 (300자 — 핵심만)
+${concernSections}
+${hasLoveConern ? "" : `4. 💕 인연의 온도: 연애 성향, 올해 인연운 (200자 — 간략히)\n`}${hasJobConcern ? "" : `5. 💰 풍요의 기운: 재물·직업운 (200자 — 간략히)\n`}6. 🔮 미래운: **향후 3년(${year}년 하반기~${year + 2}년 상반기)** 중 **${focused.join("·")} 관련 흐름** 위주로 서술 (600자)
+7. ⚠️ 운의 경고: 조심해야 할 달과 행동/인물 (200자 — 간략히)
+8. 💌 다정한 한마디: 진심 어린 위로 (150자 — 간략히)`;
+}
+
+const PAID_SYSTEM_PROMPT = (
+  year: number,
+  month: number,
+  concerns?: SajuInputForm["concerns"],
+) =>
   `당신은 '몽글사주'의 수석 명리 상담사입니다. 
 **현재 시점은 ${year}년 ${month}월입니다.** 결제 완료 유저에게 3,900원의 가치를 훌쩍 뛰어넘는 고퀄리티 인생 리포트를 제공하세요.
 
@@ -46,24 +129,13 @@ const PAID_SYSTEM_PROMPT = (year: number, month: number) =>
 - 사주 팔자: {년주}, {월주}, {일주}, {시주} (lunar-javascript 데이터)
 - 고민 키워드: {고민내용}
 
-[섹션별 필수 구성 및 분량]
-1. 🌸 {이름}님만을 위한 인생 총운 (200자)
-2. 🌱 초년운: {월주}와 {년주}로 보는 환경과 감정의 뿌리 (500자)
-3. 🌿 현재운: **현재 ${year}년**을 살아가는 이 분의 에너지와 갈등 해결책 (600자)
-4. 💕 인연의 온도: {일주} 기반의 연애 성향, 올해 인연운 (600자)
-5. 💰 풍요의 기운: 재물 창고가 열리는 달과 이직/직업운 (500자)
-6. 🔮 미래운: **향후 3년(${year}년 하반기~${year + 2}년 상반기)**의 연도별 구체적 서사 (800자)
-7. ⚠️ 운의 경고: 📅 조심해야 할 특정 달과 🚫 피해야 할 행동/인물 (300자)
-8. 💌 다정한 한마디: 유저의 삶을 껴안아주는 진심 어린 위로 (200자)
+${buildSectionGuide(year, concerns ?? [])}
 
-[지켜야 할 규칙]
 [지켜야 할 규칙]
 - **데이터 기반 해석:** 반드시 {일주} 등의 한자 데이터를 언급하며 논리적으로 풀이하세요.
-- **감성적 묘사:** "찬 바람 불 때", "벚꽃이 필 무렵" 같은 시각적 묘사를 적극 활용하세요. 
+- **감성적 묘사:** "찬 바람 불 때", "벚꽃이 필 무렵" 같은 시각적 묘사를 적극 활용하세요.
 - **분량 사수:** 전체 공백 포함 최소 2,500~3,000자를 채워야 합니다.
-**- 상황의 구체성: 단순히 "운이 좋다"고 하지 말고, 그 운이 들어왔을 때 유저가 겪을 수 있는 구체적인 상황(예: 갑작스러운 스카웃 제의, 생각지 못한 지인의 소개팅 제안, 잊고 있던 미수금 입금 등)을 최소 2가지 이상 묘사하세요.**
-**- 고민 키워드 집중: 유저가 선택한 {고민내용}이 전체 리포트의 핵심이 되어야 합니다. 전체 분량의 40% 이상을 이 고민에 대한 심층 분석과 현실적인 솔루션에 할애하세요.**
-
+- **상황의 구체성:** 단순히 "운이 좋다"고 하지 말고, 유저가 겪을 수 있는 구체적인 상황(예: 갑작스러운 스카웃 제의, 생각지 못한 지인의 소개팅 제안, 잊고 있던 미수금 입금 등)을 최소 2가지 이상 묘사하세요.
 
 [말투 가이드]
 - "~했을 거예요", "~거든요", "~죠?", "~어때요?" 말투를 사용하세요.
@@ -75,47 +147,8 @@ const PAID_SYSTEM_PROMPT = (year: number, month: number) =>
 [주의사항]
 - 좋은 말만 늘어놓는 '희망 고문'은 하지 마세요.
 - 단점을 짚을 때는 반드시 그 단점이 생기게 된 '순수한 동기'를 함께 언급하며 위로하세요.
-- 결제한 유저가 '나를 정말 잘 아는 사람이 내 편을 들어주는구나'라고 느끼게 하세요.;
+- 결제한 유저가 '나를 정말 잘 아는 사람이 내 편을 들어주는구나'라고 느끼게 하세요.
 `;
-
-/** concern 배열에 따라 80% 비중을 두는 추가 지시문 생성 (유료 전용) */
-function buildConcernInstruction(concerns: SajuInputForm["concerns"]): string {
-  if (!concerns || concerns.length === 0) return "";
-
-  // 전체운 선택 시 — 고르게 풀어달라는 지시
-  if (concerns.includes("전체운")) {
-    return `\n\n[⚠️ 특별 지시 — 반드시 따르세요]
-이 고객은 **전체적인 종합 운세**를 원합니다.
-연애운·재물운·직업운·건강운·인간관계를 **균형 있게** 상세히 풀어주세요.
-각 섹션을 충실히 채우고, 특히 올해의 월별 흐름(상반기/하반기)까지 언급해주세요.`;
-  }
-
-  const labels = concerns.join(", ");
-
-  const detailMap: Record<string, string> = {
-    연애운:
-      "현재 연애 상황, 썸 상대와의 궁합, 올해 만날 남자의 외모·성격·직업 특징, 연애를 방해하는 요소와 극복법을 아주 구체적으로 서술하세요. '전남친'과 비교한 새 인연의 차이점도 언급하면 좋아요.",
-    재회운:
-      "전남친(또는 이별한 상대)과의 재회 가능성을 명리학적으로 분석하세요. 재회가 가능한 시기, 먼저 연락해도 되는 시점, 재회 시 주의해야 할 점, 그리고 재회가 어렵다면 새 인연이 오는 시기를 상세히 알려주세요.",
-    결혼운:
-      "결혼 적령기, 배우자의 사주 특성(외모·성격·직업), 결혼을 서둘러야 하는지 기다려야 하는지, 결혼 전 반드시 확인해야 할 궁합 포인트를 명리학적으로 풀어주세요.",
-    "이직·취업운":
-      "올해 이직 또는 취업에 유리한 시기, 어울리는 직종과 회사 분위기, 연봉 협상 타이밍, 현재 직장을 버티는 게 나을지 과감하게 나가는 게 나을지를 구체적으로 조언해주세요.",
-  };
-
-  const details = concerns
-    .map((c) => `- **${c}**: ${detailMap[c] ?? ""}`)
-    .join("\n");
-
-  return `\n\n[⚠️ 특별 지시 — 반드시 따르세요]
-이 고객은 **${labels}**에 대한 고민이 가장 깊습니다.
-전체 풀이의 **80% 이상**을 해당 주제에 집중하여 서술하세요.
-다른 운세는 간략히 언급하고, 아래 지침에 따라 해당 주제를 매우 상세하고 구체적으로 풀어주세요:
-
-${details}
-
-해당 주제 섹션은 최소 300자 이상 작성하고, 시기(월/계절)까지 구체적으로 언급하세요.`;
-}
 
 export async function generateFreeReading(
   saju: SajuData,
@@ -153,12 +186,14 @@ export async function generatePaidReading(
   input: SajuInputForm,
 ): Promise<string> {
   const sajuInfo = formatSajuForPrompt(saju, input);
-  const concernInstruction = buildConcernInstruction(input.concerns ?? []);
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
-  const systemPrompt =
-    PAID_SYSTEM_PROMPT(currentYear, currentMonth) + concernInstruction;
+  const systemPrompt = PAID_SYSTEM_PROMPT(
+    currentYear,
+    currentMonth,
+    input.concerns ?? [],
+  );
 
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",

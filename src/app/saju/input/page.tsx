@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { SajuInputForm, SajuConcern } from "@/types";
+import type { SajuInputForm, SajuConcern, RelationshipStatus } from "@/types";
 
 const BIRTH_TIME_OPTIONS = [
   { value: "00:00", label: "자시 (23:00 ~ 01:00)" },
@@ -38,6 +38,18 @@ const CONCERN_OPTIONS: {
   },
 ];
 
+const LOVE_CONCERNS: SajuConcern[] = ["연애운", "재회운", "결혼운"];
+
+const RELATIONSHIP_STATUS_OPTIONS: {
+  value: RelationshipStatus;
+  emoji: string;
+}[] = [
+  { value: "솔로예요", emoji: "🌱" },
+  { value: "연애 중이에요", emoji: "💑" },
+  { value: "짝사랑 중이에요", emoji: "🥺" },
+  { value: "기혼이에요", emoji: "💍" },
+];
+
 const INITIAL_FORM: SajuInputForm = {
   name: "",
   birth_date: "",
@@ -70,6 +82,7 @@ const inputClass =
 export default function SajuInputPage() {
   const router = useRouter();
   const [form, setForm] = useState<SajuInputForm>(DEFAULT_FORM);
+  const [relationshipError, setRelationshipError] = useState(false);
   const isDev = process.env.NODE_ENV === "development";
 
   function handleChange<K extends keyof SajuInputForm>(
@@ -80,33 +93,43 @@ export default function SajuInputPage() {
   }
 
   function toggleConcern(concern: SajuConcern) {
+    setRelationshipError(false);
     setForm((prev) => {
       const has = prev.concerns.includes(concern);
+      let nextConcerns: SajuConcern[];
+
       if (has) {
-        // 이미 선택된 항목 → 해제
-        return {
-          ...prev,
-          concerns: prev.concerns.filter((c) => c !== concern),
-        };
+        nextConcerns = prev.concerns.filter((c) => c !== concern);
+      } else if (concern === "전체운") {
+        nextConcerns = ["전체운"];
+      } else {
+        nextConcerns = [...prev.concerns.filter((c) => c !== "전체운"), concern];
       }
-      if (concern === "전체운") {
-        // 전체운 선택 → 나머지 모두 해제
-        return { ...prev, concerns: ["전체운"] };
-      }
-      // 개별 항목 선택 → 전체운이 있으면 제거 후 추가
+
+      // 인연 관련 concern이 하나도 없으면 relationship_status 초기화
+      const hasLove = nextConcerns.some((c) => LOVE_CONCERNS.includes(c));
       return {
         ...prev,
-        concerns: [...prev.concerns.filter((c) => c !== "전체운"), concern],
+        concerns: nextConcerns,
+        relationship_status: hasLove ? prev.relationship_status : undefined,
       };
     });
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // 인연 관련 concern 선택 시 현재 상황 필수
+    const hasLoveConcern = form.concerns.some((c) => LOVE_CONCERNS.includes(c));
+    if (hasLoveConcern && !form.relationship_status) {
+      const el = document.getElementById("relationship-status-section");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setRelationshipError(true);
+      return;
+    }
+
     sessionStorage.setItem("saju_input", JSON.stringify(form));
-    // router.push("/login?next=/saju/result");
     router.push("/saju/result");
-    console.log("-?", form);
   }
 
   return (
@@ -378,6 +401,72 @@ export default function SajuInputPage() {
               })}
             </div>
           </div>
+
+          {/* 현재 연애 상황 — 인연 관련 concern 선택 시만 표시 */}
+          {form.concerns.some((c) => LOVE_CONCERNS.includes(c)) && (
+            <div
+              id="relationship-status-section"
+              className="flex flex-col gap-2 rounded-2xl px-4 py-4"
+              style={{
+                background: relationshipError
+                  ? "rgba(255,100,100,0.05)"
+                  : "rgba(196,160,255,0.07)",
+                border: relationshipError
+                  ? "1px solid rgba(255,100,100,0.35)"
+                  : "1px solid rgba(196,160,255,0.25)",
+                animation: "fadeIn 0.25s ease",
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <label
+                  className="text-sm font-medium"
+                  style={{ color: "#2D3142" }}
+                >
+                  지금{form.name ? ` ${form.name}님` : ""}의 상황은 어떤가요?{" "}
+                  <span style={{ color: "#A57CFF" }}>*</span>
+                </label>
+                {relationshipError && (
+                  <span className="text-xs font-medium" style={{ color: "#E05050" }}>
+                    필수 선택이에요
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {RELATIONSHIP_STATUS_OPTIONS.map((opt) => {
+                  const selected = form.relationship_status === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setRelationshipError(false);
+                        handleChange(
+                          "relationship_status",
+                          selected ? undefined : opt.value,
+                        );
+                      }}
+                      className="flex items-center gap-2 py-2.5 px-3 rounded-xl text-sm font-medium transition-all active:scale-95"
+                      style={{
+                        background: selected
+                          ? "linear-gradient(135deg, #C4A0FF 0%, #A57CFF 100%)"
+                          : "rgba(255,255,255,0.85)",
+                        color: selected ? "#fff" : "#7A7A9A",
+                        border: selected
+                          ? "1px solid #A57CFF"
+                          : "1px solid rgba(196,160,255,0.4)",
+                        boxShadow: selected
+                          ? "0 2px 10px rgba(165,124,255,0.28)"
+                          : "none",
+                      }}
+                    >
+                      <span>{opt.emoji}</span>
+                      <span>{opt.value}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* 제출 버튼 */}
           <button
