@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AuthHeader from "@/components/AuthHeader";
 
 const FEATURES = [
   {
@@ -27,9 +28,10 @@ export default function Home() {
           "linear-gradient(160deg, #F3EEFF 0%, #F8F9FF 50%, #EEF3FF 100%)",
       }}
     >
-      <div className="container mx-auto max-w-2xl px-6 py-12 flex flex-col items-center">
+      <AuthHeader />
+      <div className="container mx-auto max-w-md px-6 py-4 flex flex-col items-center">
         {/* Hero */}
-        <section className="w-full flex flex-col items-center text-center pt-12 pb-14">
+        <section className="w-full flex flex-col items-center text-center pt-6 pb-14">
           {/* 장식 아이콘 */}
           <div className="relative mb-6">
             <div

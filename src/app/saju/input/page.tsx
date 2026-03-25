@@ -48,6 +48,19 @@ const INITIAL_FORM: SajuInputForm = {
   concerns: [],
 };
 
+const DEV_FORM: SajuInputForm = {
+  name: "연지수",
+  birth_date: "1992-09-29",
+  birth_time: "11:00",
+  is_solar: true,
+  gender: "female",
+  birth_time_unknown: false,
+  concerns: [],
+};
+
+const DEFAULT_FORM: SajuInputForm =
+  process.env.NODE_ENV === "development" ? DEV_FORM : INITIAL_FORM;
+
 // 공통 인풋 스타일
 const inputClass =
   "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all bg-white/80" +
@@ -56,7 +69,8 @@ const inputClass =
 
 export default function SajuInputPage() {
   const router = useRouter();
-  const [form, setForm] = useState<SajuInputForm>(INITIAL_FORM);
+  const [form, setForm] = useState<SajuInputForm>(DEFAULT_FORM);
+  const isDev = process.env.NODE_ENV === "development";
 
   function handleChange<K extends keyof SajuInputForm>(
     key: K,
@@ -90,7 +104,9 @@ export default function SajuInputPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     sessionStorage.setItem("saju_input", JSON.stringify(form));
-    router.push("/login?next=/saju/result");
+    // router.push("/login?next=/saju/result");
+    router.push("/saju/result");
+    console.log("-?", form);
   }
 
   return (

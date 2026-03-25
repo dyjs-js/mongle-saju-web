@@ -3,52 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { AccordionResult } from "@/components/saju/SajuRenderer";
 
 const BG = "linear-gradient(160deg, #F3EEFF 0%, #F8F9FF 50%, #EEF3FF 100%)";
 
-// 마크다운 간단 렌더러
-function renderMarkdown(text: string) {
-  return text.split("\n").map((line, i) => {
-    if (line.startsWith("## ")) {
-      return (
-        <h2
-          key={i}
-          className="text-base font-bold mt-6 mb-2 flex items-center gap-2"
-          style={{ color: "#2D3142" }}
-        >
-          {line.replace("## ", "")}
-        </h2>
-      );
-    }
-    if (line.startsWith("### ")) {
-      return (
-        <h3
-          key={i}
-          className="text-sm font-semibold mt-4 mb-1"
-          style={{ color: "#7C5CBF" }}
-        >
-          {line.replace("### ", "")}
-        </h3>
-      );
-    }
-    if (line.trim() === "") return <br key={i} />;
-    return (
-      <p
-        key={i}
-        className="text-sm leading-relaxed"
-        style={{ color: "#4A4A6A" }}
-      >
-        {line}
-      </p>
-    );
-  });
-}
-
 export default function SajuResultPage() {
   const router = useRouter();
-  const [content, setContent] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  const [freeContent, setFreeContent] = useState<string | null>(null);
+  const [freeLoading, setFreeLoading] = useState(true);
+  const [freeError, setFreeError] = useState<string | null>(null);
+
+  const [isPaid, setIsPaid] = useState(false);
+  const [paidContent, setPaidContent] = useState<string | null>(null);
+  const [paidLoading, setPaidLoading] = useState(false);
+  const [paidError, setPaidError] = useState<string | null>(null);
+
   const [saving, setSaving] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
@@ -59,44 +29,56 @@ export default function SajuResultPage() {
       return;
     }
     const input = JSON.parse(inputRaw);
-
     fetch("/api/saju", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input }),
+      body: JSON.stringify({ input, type: "free" }),
     })
       .then((res) => res.json())
       .then((data) => {
         if (data.error) throw new Error(data.error);
-        setContent(data.content);
+        setFreeContent(data.content);
       })
-      .catch((err) => setError(err.message ?? "오류가 발생했습니다."))
-      .finally(() => setLoading(false));
+      .catch((err) => setFreeError(err.message ?? "오류가 발생했습니다."))
+      .finally(() => setFreeLoading(false));
   }, [router]);
 
-  // ── 카카오톡 공유 ────────────────────────────────────────────────
+  function handleUpgrade() {
+    fetchPremium();
+  }
+
+  function fetchPremium() {
+    const inputRaw = sessionStorage.getItem("saju_input");
+    if (!inputRaw) return;
+    const input = JSON.parse(inputRaw);
+    setIsPaid(true);
+    setPaidLoading(true);
+    setPaidError(null);
+    fetch("/api/saju", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input, type: "premium" }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        setPaidContent(data.content);
+      })
+      .catch((err) => setPaidError(err.message ?? "오류가 발생했습니다."))
+      .finally(() => setPaidLoading(false));
+  }
+
   function handleKakaoShare() {
     const url = window.location.href;
     const kakaoLink = `https://story.kakao.com/share?url=${encodeURIComponent(url)}`;
-    // 카카오 SDK 미사용 시 카카오스토리 공유 fallback
-    // 실제 배포 시 Kakao SDK를 초기화하면 더 풍부한 공유 가능
-    if (
-      typeof window !== "undefined" &&
-      (
-        window as unknown as {
-          Kakao?: {
-            isInitialized: () => boolean;
-            Share: { sendDefault: (opts: unknown) => void };
-          };
-        }
-      ).Kakao?.isInitialized()
-    ) {
-      const Kakao = (
-        window as unknown as {
-          Kakao: { Share: { sendDefault: (opts: unknown) => void } };
-        }
-      ).Kakao;
-      Kakao.Share.sendDefault({
+    const w = window as unknown as {
+      Kakao?: {
+        isInitialized: () => boolean;
+        Share: { sendDefault: (o: unknown) => void };
+      };
+    };
+    if (w.Kakao?.isInitialized()) {
+      w.Kakao.Share.sendDefault({
         objectType: "feed",
         content: {
           title: "🌙 몽글사주 — 나의 운명 풀이",
@@ -105,10 +87,7 @@ export default function SajuResultPage() {
           link: { mobileWebUrl: url, webUrl: url },
         },
         buttons: [
-          {
-            title: "나도 사주 보기",
-            link: { mobileWebUrl: url, webUrl: url },
-          },
+          { title: "나도 사주 보기", link: { mobileWebUrl: url, webUrl: url } },
         ],
       });
     } else {
@@ -116,7 +95,6 @@ export default function SajuResultPage() {
     }
   }
 
-  // ── 이미지 저장 ──────────────────────────────────────────────────
   async function handleSaveImage() {
     if (!resultRef.current) return;
     setSaving(true);
@@ -138,8 +116,7 @@ export default function SajuResultPage() {
     }
   }
 
-  // ── 로딩 ────────────────────────────────────────────────────────
-  if (loading) {
+  if (freeLoading) {
     return (
       <main
         className="min-h-screen flex flex-col items-center justify-center gap-5 px-6"
@@ -159,13 +136,12 @@ export default function SajuResultPage() {
             className="font-semibold text-base mb-1"
             style={{ color: "#2D3142" }}
           >
-            AI가 사주를 풀이하고 있어요...
+            AI가 사주를 읽고 있어요...
           </p>
           <p className="text-sm" style={{ color: "#9B8ABE" }}>
             잠시만 기다려 주세요 ✨
           </p>
         </div>
-        {/* 로딩 점 애니메이션 */}
         <div className="flex gap-2">
           {[0, 1, 2].map((i) => (
             <span
@@ -183,8 +159,7 @@ export default function SajuResultPage() {
     );
   }
 
-  // ── 에러 ────────────────────────────────────────────────────────
-  if (error) {
+  if (freeError) {
     return (
       <main
         className="min-h-screen flex flex-col items-center justify-center px-6 gap-5"
@@ -201,7 +176,7 @@ export default function SajuResultPage() {
             풀이 중 오류가 발생했어요
           </p>
           <p className="text-sm" style={{ color: "#9B8ABE" }}>
-            {error}
+            {freeError}
           </p>
         </div>
         <button
@@ -219,14 +194,15 @@ export default function SajuResultPage() {
     );
   }
 
-  // ── 결과 ────────────────────────────────────────────────────────
+  const displayContent = isPaid ? paidContent : freeContent;
+  const isLoadingPaid = isPaid && paidLoading;
+
   return (
     <main
       className="min-h-screen flex flex-col items-center px-4 py-10"
       style={{ background: BG }}
     >
       <div className="w-full max-w-md">
-        {/* 뒤로가기 */}
         <Link
           href="/saju/input"
           className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors"
@@ -235,7 +211,6 @@ export default function SajuResultPage() {
           ← 다시 입력하기
         </Link>
 
-        {/* 헤더 */}
         <div className="text-center mb-6">
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3 shadow-md"
@@ -246,14 +221,15 @@ export default function SajuResultPage() {
             🌙
           </div>
           <h1 className="text-2xl font-bold" style={{ color: "#2D3142" }}>
-            나의 사주풀이
+            {isPaid ? "나의 완전한 사주풀이" : "나의 사주 미리보기"}
           </h1>
           <p className="text-sm mt-1" style={{ color: "#9B8ABE" }}>
-            AI가 분석한 당신의 운명 궤도예요
+            {isPaid
+              ? "AI 수석 상담사가 분석한 인생 리포트"
+              : "AI가 들려주는 당신의 핵심 기운"}
           </p>
         </div>
 
-        {/* 결과 카드 — 이미지 저장 대상 영역 */}
         <div
           ref={resultRef}
           className="rounded-3xl p-6 mb-5"
@@ -264,63 +240,183 @@ export default function SajuResultPage() {
             boxShadow: "0 4px 24px rgba(165,124,255,0.10)",
           }}
         >
-          {/* 이미지 저장 시 보이는 워터마크 */}
           <div className="flex items-center gap-1.5 mb-4">
             <span className="text-lg">🌙</span>
             <span className="text-xs font-bold" style={{ color: "#A57CFF" }}>
               몽글사주
             </span>
+            {isPaid && (
+              <span
+                className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  background: "rgba(165,124,255,0.12)",
+                  color: "#A57CFF",
+                }}
+              >
+                ✨ PREMIUM
+              </span>
+            )}
           </div>
-          {content && renderMarkdown(content)}
+
+          {isLoadingPaid ? (
+            <div className="flex flex-col items-center gap-4 py-10">
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center text-2xl"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #C4A0FF 0%, #A57CFF 100%)",
+                  animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                }}
+              >
+                🔮
+              </div>
+              <p className="text-sm font-semibold" style={{ color: "#2D3142" }}>
+                수석 상담사가 인생 리포트를 작성 중이에요
+              </p>
+              <p className="text-xs" style={{ color: "#9B8ABE" }}>
+                약 30~60초 정도 소요됩니다 ☕
+              </p>
+              <div className="flex gap-2">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="w-2 h-2 rounded-full"
+                    style={{
+                      background: "#A57CFF",
+                      opacity: 0.6,
+                      animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : paidError ? (
+            <div className="text-center py-6">
+              <p className="text-sm" style={{ color: "#9B8ABE" }}>
+                {paidError}
+              </p>
+              <button
+                onClick={fetchPremium}
+                className="mt-3 text-sm font-medium underline"
+                style={{ color: "#A57CFF" }}
+              >
+                다시 시도하기
+              </button>
+            </div>
+          ) : (
+            displayContent && (
+              <AccordionResult content={displayContent} isPaid={isPaid} />
+            )
+          )}
         </div>
 
-        {/* 구분선 */}
-        <div
-          className="w-full h-px mb-5"
-          style={{
-            background:
-              "linear-gradient(to right, transparent, #D6C5FF, transparent)",
-          }}
-        />
-
-        {/* 공유 버튼 */}
-        <div className="flex gap-2 mb-3">
-          <button
-            onClick={handleKakaoShare}
-            className="flex-1 flex items-center justify-center gap-2 font-bold py-4 rounded-2xl transition-all active:scale-95"
+        {!isPaid && !isLoadingPaid && (
+          <div
+            className="rounded-3xl p-5 mb-5 text-center"
             style={{
-              background: "#FEE500",
-              color: "#3A1D1D",
-              boxShadow: "0 2px 12px rgba(254,229,0,0.40)",
+              background:
+                "linear-gradient(135deg, rgba(196,160,255,0.15) 0%, rgba(165,124,255,0.10) 100%)",
+              border: "1px solid rgba(165,124,255,0.35)",
             }}
           >
-            <span className="text-lg">💬</span>
-            카카오톡 공유
-          </button>
-          <button
-            onClick={handleSaveImage}
-            disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 font-bold py-4 rounded-2xl transition-all active:scale-95 disabled:opacity-60"
-            style={{
-              background: "linear-gradient(135deg, #C4A0FF 0%, #A57CFF 100%)",
-              color: "#fff",
-              boxShadow: "0 2px 12px rgba(165,124,255,0.35)",
-            }}
-          >
-            <span className="text-lg">🖼️</span>
-            {saving ? "저장 중..." : "이미지 저장"}
-          </button>
-        </div>
+            <p
+              className="text-base font-bold mb-1"
+              style={{ color: "#2D3142" }}
+            >
+              🔒 더 자세한 인생 서사와 3년 치 미래운이 궁금하다면?
+            </p>
+            <p className="text-xs mb-4" style={{ color: "#9B8ABE" }}>
+              초년운 · 현재운 · 미래 3년 · 연애/재회 · 운의 경고까지
+              <br />
+              수석 상담사의 <strong>완전한 인생 리포트</strong>를 확인하세요
+            </p>
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <span
+                className="text-sm line-through"
+                style={{ color: "#C0B4D8" }}
+              >
+                9,900원
+              </span>
+              <span
+                className="text-2xl font-black"
+                style={{ color: "#A57CFF" }}
+              >
+                3,900원
+              </span>
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-full"
+                style={{ background: "#A57CFF", color: "#fff" }}
+              >
+                60% 할인
+              </span>
+            </div>
+            <button
+              onClick={handleUpgrade}
+              className="w-full font-bold py-4 rounded-2xl text-base transition-all active:scale-95 hover:brightness-105"
+              style={{
+                background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
+                color: "#fff",
+                boxShadow: "0 4px 20px rgba(165,124,255,0.40)",
+              }}
+            >
+              ✨ 완전한 사주풀이 보기 · 3,900원
+            </button>
+            <p className="text-xs mt-2" style={{ color: "#C0B4D8" }}>
+              1회 결제 · 평생 열람 · 환불 불가
+            </p>
+          </div>
+        )}
 
-        {/* 하단 버튼 */}
+        {isPaid && !isLoadingPaid && paidContent && (
+          <>
+            <div
+              className="w-full h-px mb-5"
+              style={{
+                background:
+                  "linear-gradient(to right, transparent, #D6C5FF, transparent)",
+              }}
+            />
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={handleKakaoShare}
+                className="flex-1 flex items-center justify-center gap-2 font-bold py-4 rounded-2xl transition-all active:scale-95"
+                style={{
+                  background: "#FEE500",
+                  color: "#3A1D1D",
+                  boxShadow: "0 2px 12px rgba(254,229,0,0.40)",
+                }}
+              >
+                <span className="text-lg">💬</span>카카오톡 공유
+              </button>
+              <button
+                onClick={handleSaveImage}
+                disabled={saving}
+                className="flex-1 flex items-center justify-center gap-2 font-bold py-4 rounded-2xl transition-all active:scale-95 disabled:opacity-60"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #C4A0FF 0%, #A57CFF 100%)",
+                  color: "#fff",
+                  boxShadow: "0 2px 12px rgba(165,124,255,0.35)",
+                }}
+              >
+                <span className="text-lg">🖼️</span>
+                {saving ? "저장 중..." : "이미지 저장"}
+              </button>
+            </div>
+          </>
+        )}
+
         <div className="flex flex-col gap-3 pb-12">
           <button
             onClick={() => router.push("/saju/input")}
             className="w-full font-bold py-4 rounded-2xl transition-all active:scale-95 hover:brightness-105"
             style={{
-              background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
-              color: "#fff",
-              boxShadow: "0 4px 20px rgba(165,124,255,0.30)",
+              background: isPaid
+                ? "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)"
+                : "rgba(255,255,255,0.80)",
+              color: isPaid ? "#fff" : "#7C5CBF",
+              border: isPaid ? "none" : "1px solid rgba(196,160,255,0.4)",
+              boxShadow: isPaid ? "0 4px 20px rgba(165,124,255,0.30)" : "none",
             }}
           >
             다시 분석하기

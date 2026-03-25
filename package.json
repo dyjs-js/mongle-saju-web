@@ -13,6 +13,7 @@
     "@supabase/supabase-js": "^2.99.3",
     "html2canvas": "^1.4.1",
     "korean-lunar-calendar": "^0.3.6",
+    "lunar-javascript": "^1.7.7",
     "next": "16.2.0",
     "openai": "^6.32.0",
     "react": "19.2.4",

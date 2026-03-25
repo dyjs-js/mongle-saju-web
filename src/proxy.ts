@@ -30,8 +30,10 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 보호된 라우트 설정
-  const protectedPaths = ["/saju/result"];
+  // 보호된 라우트 설정 (로그인 필요한 페이지)
+  const protectedPaths: string[] = [];
+  // TODO: 로그인 기능 활성화 시 아래 주석 해제
+  // const protectedPaths = ["/saju/result"];
   const isProtectedPath = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path),
   );

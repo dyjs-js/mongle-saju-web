@@ -17,7 +17,7 @@ Next.js + GPT-4o + Supabase
 
 ## 개발 환경
 
-- **Next.js** (App Router, Server Actions)
+- **Next.js** (App Router)
 - **TypeScript**
 - **Supabase** (Auth, DB)
 - **OpenAI GPT-4o**
