@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { SajuInputForm, SajuConcern, RelationshipStatus } from "@/types";
@@ -57,7 +57,7 @@ const INITIAL_FORM: SajuInputForm = {
   is_solar: true,
   gender: "female",
   birth_time_unknown: false,
-  concerns: [],
+  concerns: ["전체운"],
 };
 
 const DEV_FORM: SajuInputForm = {
@@ -67,7 +67,7 @@ const DEV_FORM: SajuInputForm = {
   is_solar: true,
   gender: "female",
   birth_time_unknown: false,
-  concerns: [],
+  concerns: ["전체운"],
 };
 
 const DEFAULT_FORM: SajuInputForm =
@@ -84,6 +84,12 @@ export default function SajuInputPage() {
   const [form, setForm] = useState<SajuInputForm>(DEFAULT_FORM);
   const [relationshipError, setRelationshipError] = useState(false);
   const isDev = process.env.NODE_ENV === "development";
+
+  // 입력 페이지 진입 시 항상 폼을 초기값으로 리셋
+  useEffect(() => {
+    sessionStorage.removeItem("saju_input");
+    setForm(DEFAULT_FORM);
+  }, []);
 
   function handleChange<K extends keyof SajuInputForm>(
     key: K,
@@ -103,7 +109,10 @@ export default function SajuInputPage() {
       } else if (concern === "전체운") {
         nextConcerns = ["전체운"];
       } else {
-        nextConcerns = [...prev.concerns.filter((c) => c !== "전체운"), concern];
+        nextConcerns = [
+          ...prev.concerns.filter((c) => c !== "전체운"),
+          concern,
+        ];
       }
 
       // 인연 관련 concern이 하나도 없으면 relationship_status 초기화
@@ -426,7 +435,10 @@ export default function SajuInputPage() {
                   <span style={{ color: "#A57CFF" }}>*</span>
                 </label>
                 {relationshipError && (
-                  <span className="text-xs font-medium" style={{ color: "#E05050" }}>
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: "#E05050" }}
+                  >
                     필수 선택이에요
                   </span>
                 )}

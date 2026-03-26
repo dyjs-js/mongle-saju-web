@@ -46,6 +46,9 @@ export async function POST(request: Request) {
           gender: input.gender,
           is_solar: input.is_solar,
           concerns: input.concerns ?? [],
+          ...(input.relationship_status
+            ? { relationship_status: input.relationship_status }
+            : {}),
         })
         .order("created_at", { ascending: false })
         .limit(1)
