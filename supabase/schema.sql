@@ -64,12 +64,32 @@ create policy "Users can insert own payments" on payments
 -- 트리거 (Triggers) 설정
 -- ====================================================
 
--- [Trigger 1] 신규 가입 시 profiles 자동 생성 (Security Definer 필수)
+-- [Trigger 1] 신규 가입 시 profiles 자동 생성 + 랜덤 닉네임 부여
 create or replace function public.handle_new_user()
 returns trigger as $$
+declare
+  adjectives text[] := array[
+    '신비한','보랏빛','달빛','별빛','구름빛','은하수','새벽빛','노을빛',
+    '오묘한','찬란한','따뜻한','포근한','반짝이는','수줍은','고요한','맑은',
+    '몽글몽글','아련한','설레는','두근두근'
+  ];
+  nouns text[] := array[
+    '여우','달팽이','두꺼비','고양이','토끼','부엉이','거북이','나비',
+    '도깨비','용','봉황','기린','판다','코알라','다람쥐','수달',
+    '사주쟁이','점성술사','운명가','별자리'
+  ];
+  rand_adj text;
+  rand_noun text;
+  rand_num text;
+  new_name text;
 begin
-  insert into public.profiles (id)
-  values (new.id);
+  rand_adj  := adjectives[1 + floor(random() * array_length(adjectives, 1))::int];
+  rand_noun := nouns[1 + floor(random() * array_length(nouns, 1))::int];
+  rand_num  := lpad((floor(random() * 900) + 100)::text, 3, '0');
+  new_name  := rand_adj || rand_noun || rand_num;
+
+  insert into public.profiles (id, name)
+  values (new.id, new_name);
   return new;
 end;
 $$ language plpgsql security definer set search_path = public;
