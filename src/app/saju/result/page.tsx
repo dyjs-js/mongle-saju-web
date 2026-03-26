@@ -335,13 +335,13 @@ export default function SajuResultPage() {
                 className="text-sm line-through"
                 style={{ color: "#C0B4D8" }}
               >
-                9,900원
+                3,900
               </span>
               <span
                 className="text-2xl font-black"
                 style={{ color: "#A57CFF" }}
               >
-                3,900원
+                990
               </span>
               <span
                 className="text-xs font-bold px-2 py-0.5 rounded-full"
@@ -359,7 +359,7 @@ export default function SajuResultPage() {
                 boxShadow: "0 4px 20px rgba(165,124,255,0.40)",
               }}
             >
-              ✨ 완전한 사주풀이 보기 · 3,900원
+              ✨ 완전한 사주풀이 보기 · 990원
             </button>
             <p className="text-xs mt-2" style={{ color: "#C0B4D8" }}>
               1회 결제 · 평생 열람 · 환불 불가
