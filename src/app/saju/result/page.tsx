@@ -29,14 +29,52 @@ export default function SajuResultPage() {
       return;
     }
     const input = JSON.parse(inputRaw);
+
+    // [Layer 1] localStorage 캐시 확인 — 오늘 날짜 기준
+    const CACHE_KEY = "mongle_free_result";
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached) as { date: string; content: string };
+        if (parsed.date === today && parsed.content) {
+          setFreeContent(parsed.content);
+          setFreeLoading(false);
+          return; // API 호출 없이 즉시 렌더링
+        }
+      }
+    } catch {
+      /* localStorage 접근 실패 무시 */
+    }
+
     fetch("/api/saju", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Request-Type": "free", // [Layer 2] IP rate limit 헤더
+      },
       body: JSON.stringify({ input, type: "free" }),
     })
       .then((res) => res.json())
       .then((data) => {
+        if (data.error === "daily_limit_exceeded") {
+          throw new Error("daily_limit_exceeded");
+        }
+        if (data.error === "ip_rate_limit_exceeded") {
+          throw new Error("ip_rate_limit_exceeded");
+        }
         if (data.error) throw new Error(data.error);
+
+        // [Layer 1] 결과를 localStorage에 저장
+        try {
+          localStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({ date: today, content: data.content }),
+          );
+        } catch {
+          /* 무시 */
+        }
+
         setFreeContent(data.content);
       })
       .catch((err) => setFreeError(err.message ?? "오류가 발생했습니다."))
@@ -160,6 +198,10 @@ export default function SajuResultPage() {
   }
 
   if (freeError) {
+    const isDailyLimit = freeError === "daily_limit_exceeded";
+    const isIpLimit = freeError === "ip_rate_limit_exceeded";
+    const isLimit = isDailyLimit || isIpLimit;
+
     return (
       <main
         className="min-h-screen flex flex-col items-center justify-center px-6 gap-5"
@@ -167,29 +209,60 @@ export default function SajuResultPage() {
       >
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
-          style={{ background: "#FFF0F0", border: "1px solid #FFD0D0" }}
-        >
-          😢
-        </div>
-        <div className="text-center">
-          <p className="font-semibold mb-1" style={{ color: "#2D3142" }}>
-            풀이 중 오류가 발생했어요
-          </p>
-          <p className="text-sm" style={{ color: "#9B8ABE" }}>
-            {freeError}
-          </p>
-        </div>
-        <button
-          onClick={() => router.push("/saju/input")}
-          className="font-medium px-8 py-3 rounded-full transition-all active:scale-95"
           style={{
-            background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
-            color: "#fff",
-            boxShadow: "0 4px 16px rgba(165,124,255,0.30)",
+            background: isLimit ? "#FFF8E0" : "#FFF0F0",
+            border: `1px solid ${isLimit ? "#FFE066" : "#FFD0D0"}`,
           }}
         >
-          다시 시도하기
-        </button>
+          {isLimit ? "�" : "�😢"}
+        </div>
+        <div className="text-center max-w-xs">
+          <p className="font-semibold mb-1" style={{ color: "#2D3142" }}>
+            {isDailyLimit
+              ? "오늘의 무료 체험이 모두 마감됐어요"
+              : isIpLimit
+                ? "오늘 무료 체험 횟수를 모두 사용했어요"
+                : "풀이 중 오류가 발생했어요"}
+          </p>
+          <p className="text-sm leading-relaxed" style={{ color: "#9B8ABE" }}>
+            {isDailyLimit
+              ? "오늘 준비된 500개의 무료 궤도가 모두 소진됐어요.\n내일 오전 00시에 다시 열려요!"
+              : isIpLimit
+                ? "하루 3회까지 무료로 확인할 수 있어요."
+                : freeError}
+          </p>
+        </div>
+
+        {isLimit ? (
+          <div className="flex flex-col gap-2 w-full max-w-xs">
+            <button
+              onClick={handleUpgrade}
+              className="font-bold px-8 py-3.5 rounded-2xl transition-all active:scale-95 text-sm"
+              style={{
+                background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
+                color: "#fff",
+                boxShadow: "0 4px 16px rgba(165,124,255,0.30)",
+              }}
+            >
+              기다리기 싫어요, 지금 바로 보기 →
+            </button>
+            <p className="text-center text-xs" style={{ color: "#C0B4D8" }}>
+              프리미엄 풀이는 제한 없이 언제든지 이용 가능해요
+            </p>
+          </div>
+        ) : (
+          <button
+            onClick={() => router.push("/saju/input")}
+            className="font-medium px-8 py-3 rounded-full transition-all active:scale-95"
+            style={{
+              background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
+              color: "#fff",
+              boxShadow: "0 4px 16px rgba(165,124,255,0.30)",
+            }}
+          >
+            다시 시도하기
+          </button>
+        )}
       </main>
     );
   }

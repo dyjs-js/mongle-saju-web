@@ -85,10 +85,27 @@ export default function SajuInputPage() {
   const [relationshipError, setRelationshipError] = useState(false);
   const isDev = process.env.NODE_ENV === "development";
 
-  // 입력 페이지 진입 시 항상 폼을 초기값으로 리셋
+  // 잔여 수량 상태
+  const [quota, setQuota] = useState<{
+    remaining: number;
+    max_limit: number;
+    loaded: boolean;
+  }>({ remaining: 500, max_limit: 500, loaded: false });
+
+  // 입력 페이지 진입 시 항상 폼을 초기값으로 리셋 + 잔여 수량 조회
   useEffect(() => {
     sessionStorage.removeItem("saju_input");
     setForm(DEFAULT_FORM);
+    fetch("/api/saju")
+      .then((r) => r.json())
+      .then((d) =>
+        setQuota({
+          remaining: d.remaining ?? 500,
+          max_limit: d.max_limit ?? 500,
+          loaded: true,
+        }),
+      )
+      .catch(() => setQuota({ remaining: 500, max_limit: 500, loaded: true }));
   }, []);
 
   function handleChange<K extends keyof SajuInputForm>(
@@ -481,31 +498,81 @@ export default function SajuInputPage() {
           )}
 
           {/* 제출 버튼 */}
-          {/* 무료 배지 */}
-          <div className="flex justify-center">
-            <span
-              className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full"
+          {quota.loaded && quota.remaining <= 0 ? (
+            // Sold Out UI
+            <div
+              className="flex flex-col gap-3 p-4 rounded-2xl text-center"
               style={{
-                background: "linear-gradient(135deg, #FFE066 0%, #FFD700 100%)",
-                color: "#7A5800",
-                boxShadow: "0 2px 8px rgba(255,200,0,0.30)",
-                letterSpacing: "0.02em",
+                background: "rgba(255,80,80,0.05)",
+                border: "1px solid rgba(255,80,80,0.20)",
               }}
             >
-              🎁 지금 바로 무료 체험 가능!
-            </span>
-          </div>
-          <button
-            type="submit"
-            className="mt-1 font-bold py-4 rounded-2xl text-base transition-all active:scale-95 hover:brightness-105"
-            style={{
-              background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
-              color: "#fff",
-              boxShadow: "0 4px 20px rgba(165,124,255,0.35)",
-            }}
-          >
-            내 운명 무료로 확인하기 ✨
-          </button>
+              <p className="text-sm font-semibold" style={{ color: "#2D3142" }}>
+                오늘 준비된 500개의 무료 궤도가 모두 소진됐어요 😢
+              </p>
+              <p className="text-xs" style={{ color: "#9B8ABE" }}>
+                내일 오전 00시에 다시 열려요!
+                <br />
+                기다리기 힘들다면 지금 바로 확인하세요.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  sessionStorage.setItem("saju_input", JSON.stringify(form));
+                  router.push("/saju/result");
+                }}
+                className="font-bold py-3.5 rounded-2xl text-sm transition-all active:scale-95"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
+                  color: "#fff",
+                  boxShadow: "0 4px 20px rgba(165,124,255,0.35)",
+                }}
+              >
+                프리미엄으로 지금 바로 보기 →
+              </button>
+            </div>
+          ) : (
+            <div className="relative mt-2">
+              {/* 플로팅 배지 — 버튼 우상단 */}
+              <div className="absolute -top-3.5 -right-2 z-10 bg-white px-2.5 py-1 rounded-full shadow-md border border-purple-100 flex items-center gap-1.5">
+                {/* 실시간 핑 점 */}
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                </span>
+                <span className="text-[11px] font-bold text-gray-800 whitespace-nowrap">
+                  {quota.loaded ? (
+                    <>
+                      오늘 남은 무료:{" "}
+                      <strong style={{ color: "#A57CFF" }}>
+                        {quota.remaining}
+                      </strong>
+                      개
+                      {quota.remaining <= 50 && (
+                        <span className="ml-1 text-red-500">곧 마감!</span>
+                      )}
+                    </>
+                  ) : (
+                    "🎁 무료 체험 가능!"
+                  )}
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full font-bold py-4 rounded-2xl text-base transition-all active:scale-95 hover:brightness-105"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
+                  color: "#fff",
+                  boxShadow: "0 4px 20px rgba(165,124,255,0.35)",
+                }}
+              >
+                내 운명 무료로 확인하기 ✨
+              </button>
+            </div>
+          )}
           <p className="text-center text-xs" style={{ color: "#C0B4D8" }}>
             처음 입력은 무료 · 결제는 나중에
           </p>

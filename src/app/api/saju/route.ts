@@ -4,6 +4,32 @@ import { calculateSaju } from "@/services/saju";
 import { generateFreeReading, generatePaidReading } from "@/services/openai";
 import type { SajuInputForm } from "@/types";
 
+const FREE_DAILY_LIMIT = 500;
+
+export async function GET() {
+  // 오늘의 무료 사용량 조회 (input 페이지 실시간 배지용)
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("get_today_free_stats");
+    if (error) throw error;
+    const stats = data as { free_count: number; max_limit: number };
+    return NextResponse.json({
+      free_count: stats.free_count ?? 0,
+      max_limit: stats.max_limit ?? FREE_DAILY_LIMIT,
+      remaining: Math.max(
+        0,
+        (stats.max_limit ?? FREE_DAILY_LIMIT) - (stats.free_count ?? 0),
+      ),
+    });
+  } catch {
+    return NextResponse.json({
+      free_count: 0,
+      max_limit: FREE_DAILY_LIMIT,
+      remaining: FREE_DAILY_LIMIT,
+    });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -27,11 +53,43 @@ export async function POST(request: Request) {
       );
     }
 
-    // ── 무료 버전: 캐싱 없이 빠르게 반환 ───────────────────────────
+    // ── 무료 버전: 글로벌 쿼터 체크 후 생성 ─────────────────────────
     if (type === "free") {
+      // [Layer 3] 오늘의 전체 무료 호출 수 확인
+      const { data: statsData } = await supabase.rpc("get_today_free_stats");
+      const stats = statsData as {
+        free_count: number;
+        max_limit: number;
+      } | null;
+      const currentCount = stats?.free_count ?? 0;
+      const maxLimit = stats?.max_limit ?? FREE_DAILY_LIMIT;
+
+      if (currentCount >= maxLimit) {
+        return NextResponse.json(
+          {
+            error: "daily_limit_exceeded",
+            free_count: currentCount,
+            max_limit: maxLimit,
+          },
+          { status: 429 },
+        );
+      }
+
       const saju = calculateSaju(input);
       const content = await generateFreeReading(saju, input);
-      return NextResponse.json({ content, type: "free" });
+
+      // 카운트 증가 (실패해도 결과는 반환)
+      try {
+        await supabase.rpc("increment_free_count");
+      } catch {
+        /* ignore */
+      }
+
+      return NextResponse.json({
+        content,
+        type: "free",
+        remaining: Math.max(0, maxLimit - currentCount - 1),
+      });
     }
 
     // ── 유료 버전: 캐싱 조회 후 GPT-4o 생성 ────────────────────────
