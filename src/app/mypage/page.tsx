@@ -393,16 +393,29 @@ export default function MyPage() {
                 총 {results.length}개의 사주풀이
               </p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="text-xs px-3 py-1.5 rounded-full border transition-all hover:bg-gray-50 shrink-0"
-              style={{
-                color: "#9B8ABE",
-                borderColor: "rgba(196,160,255,0.4)",
-              }}
-            >
-              로그아웃
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href="/settings"
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-gray-100"
+                style={{
+                  color: "#9B8ABE",
+                  border: "1px solid rgba(196,160,255,0.4)",
+                }}
+                title="내 정보 설정"
+              >
+                ⚙️
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="text-xs px-3 py-1.5 rounded-full border transition-all hover:bg-gray-50"
+                style={{
+                  color: "#9B8ABE",
+                  borderColor: "rgba(196,160,255,0.4)",
+                }}
+              >
+                로그아웃
+              </button>
+            </div>
           </div>
 
           {/* 섹션 제목 */}
