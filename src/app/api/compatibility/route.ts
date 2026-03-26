@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { calculateSaju } from "@/services/saju";
 import { generateCompatibilityReading } from "@/services/openai";
 import { createServiceClient } from "@/lib/supabase/server";
+import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import type { SajuInputForm } from "@/types";
 
 // 프롬프트 변경 시 이 값을 올리면 기존 캐시 자동 무효화
@@ -17,6 +18,16 @@ function makeIljuKey(ilju1: string, ilju2: string): string {
 
 export async function POST(request: Request) {
   try {
+    // ── IP Rate Limit: 분당 5회 ────────────────────────────────
+    const ip = getIp(request);
+    const { allowed } = checkRateLimit(`compat:${ip}`, 5, 60_000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "요청이 너무 많아요. 잠시 후 다시 시도해주세요." },
+        { status: 429 },
+      );
+    }
+
     const {
       user1,
       user2,

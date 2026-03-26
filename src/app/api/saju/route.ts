@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { calculateSaju } from "@/services/saju";
 import { generateFreeReading, generatePaidReading } from "@/services/openai";
+import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import type { SajuInputForm } from "@/types";
 
 const FREE_DAILY_LIMIT = 500;
@@ -32,18 +33,30 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    // ── IP Rate Limit: 무료 분당 5회 / 유료 분당 3회 ──────────────
+    const ip = getIp(request);
+    const body = await request.json();
+    const type: "free" | "premium" = body.type ?? "free";
+    const input: SajuInputForm = body.input;
+
+    const rateLimit =
+      type === "free"
+        ? checkRateLimit(`saju-free:${ip}`, 5, 60_000)
+        : checkRateLimit(`saju-paid:${ip}`, 3, 60_000);
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "ip_rate_limit_exceeded" },
+        { status: 429 },
+      );
+    }
+
     const supabase = await createClient();
 
     // 로그인 여부 확인 (실패해도 계속 진행)
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
-    const {
-      input,
-      type = "free",
-    }: { input: SajuInputForm; type?: "free" | "premium" } =
-      await request.json();
 
     // 입력값 검증
     if (!input.name || !input.birth_date || !input.gender) {
