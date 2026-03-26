@@ -481,19 +481,33 @@ export default function SajuInputPage() {
           )}
 
           {/* 제출 버튼 */}
+          {/* 무료 배지 */}
+          <div className="flex justify-center">
+            <span
+              className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full"
+              style={{
+                background: "linear-gradient(135deg, #FFE066 0%, #FFD700 100%)",
+                color: "#7A5800",
+                boxShadow: "0 2px 8px rgba(255,200,0,0.30)",
+                letterSpacing: "0.02em",
+              }}
+            >
+              🎁 지금 바로 무료 체험 가능!
+            </span>
+          </div>
           <button
             type="submit"
-            className="mt-2 font-bold py-4 rounded-2xl text-base transition-all active:scale-95 hover:brightness-105"
+            className="mt-1 font-bold py-4 rounded-2xl text-base transition-all active:scale-95 hover:brightness-105"
             style={{
               background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
               color: "#fff",
               boxShadow: "0 4px 20px rgba(165,124,255,0.35)",
             }}
           >
-            나의 운명 궤도 확인하기 ✨
+            내 운명 무료로 확인하기 ✨
           </button>
           <p className="text-center text-xs" style={{ color: "#C0B4D8" }}>
-            입력 후 로그인하면 결과를 확인할 수 있어요
+            처음 입력은 무료 · 결제는 나중에
           </p>
         </form>
       </div>

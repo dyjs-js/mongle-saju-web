@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
 
 export default function AuthHeader() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
@@ -26,6 +28,12 @@ export default function AuthHeader() {
     return () => subscription.unsubscribe();
   }, []);
 
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace("/");
+  }
+
   if (loading) {
     return (
       <header
@@ -43,7 +51,7 @@ export default function AuthHeader() {
   if (user) {
     return (
       <header
-        className="w-full px-4 pt-5 pb-1 flex justify-end"
+        className="w-full px-4 pt-5 pb-1 flex justify-end items-center gap-2"
         style={{ maxWidth: 448, margin: "0 auto" }}
       >
         <Link
@@ -57,6 +65,17 @@ export default function AuthHeader() {
         >
           🌙 마이페이지
         </Link>
+        <button
+          onClick={handleLogout}
+          className="text-xs px-3 py-1.5 rounded-full font-medium transition-all active:scale-95"
+          style={{
+            background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
+            color: "#fff",
+            boxShadow: "0 2px 8px rgba(165,124,255,0.35)",
+          }}
+        >
+          로그아웃
+        </button>
       </header>
     );
   }

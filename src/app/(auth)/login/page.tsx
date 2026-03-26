@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -45,8 +45,8 @@ function LoginContent() {
   const [tab, setTab] = useState<"social" | "email">(
     isDev || tabParam === "signup" ? "email" : "social",
   );
-  const [email, setEmail] = useState(isDev ? "test@mongle.kr" : "");
-  const [password, setPassword] = useState(isDev ? "test1234!" : "");
+  const [email, setEmail] = useState(isDev ? "dydy11642@gmail.com" : "");
+  const [password, setPassword] = useState(isDev ? "Wltnwltn1!" : "");
   const [isSignUp, setIsSignUp] = useState(tabParam === "signup");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -56,6 +56,35 @@ function LoginContent() {
 
   const supabase = createClient();
   const redirectTo = `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback?next=${encodeURIComponent(next)}`;
+
+  // ── URL hash 에러 처리 (비밀번호 재설정 링크 만료 등) ──────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    if (!hash) return;
+    const params = new URLSearchParams(hash.replace(/^#/, ""));
+    const errorCode = params.get("error_code");
+    const errorDesc = params.get("error_description");
+    if (errorCode || errorDesc) {
+      const errorMsgMap: Record<string, string> = {
+        otp_expired: "비밀번호 재설정 링크가 만료됐어요. 다시 요청해주세요.",
+        access_denied: "링크가 유효하지 않아요. 다시 요청해주세요.",
+      };
+      const msg =
+        (errorCode && errorMsgMap[errorCode]) ??
+        (errorDesc
+          ? decodeURIComponent(errorDesc.replace(/\+/g, " "))
+          : "인증 오류가 발생했어요.");
+      setTab("email");
+      setMessage({ type: "error", text: `⚠️ ${msg}` });
+      // hash 제거 (뒤로가기 시 반복 표시 방지)
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search,
+      );
+    }
+  }, []);
 
   // ── 소셜 로그인 ────────────────────────────────────────────────
   async function handleOAuth(provider: "google" | "kakao" | "apple") {
@@ -110,12 +139,22 @@ function LoginContent() {
       return;
     }
     setLoading(true);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const resetRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent("/settings/reset-password")}`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo,
+      redirectTo: resetRedirectTo,
     });
     setLoading(false);
     if (error) {
-      setMessage({ type: "error", text: error.message });
+      const errorMsgMap: Record<string, string> = {
+        over_email_send_rate_limit:
+          "이메일 발송 횟수를 초과했어요. 잠시 후 다시 시도해주세요.",
+        email_rate_limit_exceeded:
+          "이메일 발송 횟수를 초과했어요. 잠시 후 다시 시도해주세요.",
+      };
+      const code = (error as { code?: string }).code ?? "";
+      const msg = errorMsgMap[code] ?? error.message;
+      setMessage({ type: "error", text: msg });
     } else {
       setMessage({
         type: "success",
