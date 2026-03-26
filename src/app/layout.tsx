@@ -16,7 +16,8 @@ const nanumMyeongjo = Nanum_Myeongjo({
 
 export const metadata: Metadata = {
   title: "몽글사주 | AI 사주풀이",
-  description: "AI가 풀어주는 나만의 사주. 연애운, 남자복, 재물운까지 한눈에.",
+  description:
+    "사주 덕후 개발자가 만든 AI가 풀어주는 나만의 사주. 연애운, 남자복, 재물운까지 한눈에.",
   openGraph: {
     title: "몽글사주 | AI 사주풀이",
     description:

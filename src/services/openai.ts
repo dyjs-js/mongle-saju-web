@@ -5,6 +5,72 @@ import { formatSajuForPrompt } from "./saju";
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+const RELATIONSHIP_REPORT_PROMPT = (
+  user1: CompatibilityUser,
+  user2: CompatibilityUser,
+  relationship: string,
+) => `
+당신은 '몽글사주'의 핵심 데이터 분석기입니다. 아래 가이드에 따라 두 사람의 상성을 수치로 분석하고, 관계에 딱 맞는 찰진 한마디를 JSON으로 응답하세요.
+
+[데이터]
+- 인물 A: ${user1.name} (${user1.ilju})
+- 인물 B: ${user2.name} (${user2.ilju})
+- 관계 유형: ${relationship}
+
+[지수 산정 가이드 - 0~100 정수]
+* 아래 모든 지수(1~9번)는 {{A}}와 {{B}}의 수치 합계가 반드시 100이어야 합니다. (A+B=100 절대 준수)
+
+1. patience: 고집을 받아주는 비중 (더 참는 쪽이 높음)
+2. power: 주도권을 쥐고 있는 비중 (자기 맘대로 하면 높음)
+3. stress: 상대로 인해 받는 피로도 비중 (신경 많이 쓰면 높음)
+4. obsession: 연락 집착 및 소유욕 비중 (안달 나면 높음)
+5. love: 상대를 생각하는 마음의 무게 (사랑꾼일수록 높음)
+6. filter: 말을 삼키고 참는 비중 (속으로 삭히면 높음)
+7. baby: 상대에게 의지하고 애처럼 구는 비중 (챙김 받으면 높음)
+8. savings: 서운함이 쌓여있는 비중 (희생하는 쪽이 높음)
+9. devotion: 헌신 지수 (상대에게 퍼주는 에너지가 클수록 높음) 
+
+[⚠️ 데이터 무결성 체크]
+- 모든 객체 { "A": number, "B": number }에서 A + B의 값은 정확히 100이어야 합니다.
+- 예: { "A": 70, "B": 30 } (O) / { "A": 60, "B": 20 } (X - 즉시 수정)
+
+[오행 분석 및 수치 로직]
+- ${user1.ilju}(A)와 ${user2.ilju}(B)의 오행 관계(생·극·비화)를 우선 분석하세요.
+- **수동적/수습형**: 더 많이 맞춰주는 쪽의 patience, stress, filter, savings를 높게 설정하세요.
+- **능동적/직진형**: 기운이 강한 쪽의 power, baby를 높게 설정하세요.
+- **사랑의 무게**: 더 많이 챙겨주고 뒷수습하는 '을'의 입장을 love 수치에 반영하세요.
+
+[Punchline 생성 규칙]
+- **핵심**: 이 관계의 구조적 진실을 한 방에 찌르세요. "누가 을인가", "누가 더 퍼주나", "누가 모르고 있나" — 그 불편한 진실을 직구로 던지세요.
+- **절대 금지**: 밈·유행어·드라마 비유 (톰과제리, 오징어게임 등) 사용 금지. 추상적 미사여구 ("빛나는", "아름다운", "든든한") 금지. 물결표(~) 금지.
+- **말투**: 친한 언니가 술 한 잔 하다가 "있잖아, 솔직히 말하면..." 하고 툭 던지는 느낌. 20자 이내.
+- **구조 예시** (이 예시를 그대로 쓰지 말고, 패턴만 참고):
+  - "{{A}}님이 70% 퍼줘요. {{B}}님은 알까요? 💸"
+  - "{{B}}님, 이 관계에서 을이 누군지 알죠? 💀"
+  - "{{A}}님 혼자 다 하고 있어요. 진짜로. ✨"
+- **관계별 이모지**: 연인 💕, 친구·가족 🌻, 직장동료 💼 — 딱 하나만.
+
+[예약어 및 호칭 규칙]
+- 인물 A는 {{A}}, 인물 B는 {{B}}로만 출력하세요.
+- **호칭 필수**: 예약어 뒤에 반드시 '님'을 붙이세요. (예: {{A}}님이, {{B}}님은)
+
+[JSON Schema]
+{
+  "score": number,
+  "patience":  { "A": number, "B": number },
+  "power":     { "A": number, "B": number },
+  "stress":    { "A": number, "B": number },
+  "obsession": { "A": number, "B": number },
+  "love":      { "A": number, "B": number },
+  "filter":    { "A": number, "B": number },
+  "baby":      { "A": number, "B": number },
+  "savings":   { "A": number, "B": number },
+  "devotion":  { "A": number, "B": number },
+  "punchline": "string"
+}
+`;
+
 const FREE_SYSTEM_PROMPT = (year: number, month: number) =>
   `당신은 '몽글사주'의 AI 상담사입니다. 
 **현재 시점은 ${year}년 ${month}월입니다.** 모든 분석은 ${year}년을 기준으로 진행하세요.
@@ -152,6 +218,48 @@ ${buildSectionGuide(year, concerns ?? [])}
 - 결제한 유저가 '나를 정말 잘 아는 사람이 내 편을 들어주는구나'라고 느끼게 하세요.
 `;
 
+interface CompatibilityUser {
+  name: string;
+  ilju: string;
+}
+
+export interface CompatibilityResult {
+  score: number;
+  patience: { A: number; B: number };
+  power: { A: number; B: number };
+  stress: { A: number; B: number };
+  obsession: { A: number; B: number };
+  love: { A: number; B: number }; // A+B=100
+  filter: { A: number; B: number };
+  baby: { A: number; B: number };
+  savings: { A: number; B: number };
+  cost_eff: { A: number; B: number };
+  punchline: string;
+}
+
+/** AI 응답에서 JSON을 안전하게 파싱 */
+function parseCompatibilityJson(raw: string): CompatibilityResult {
+  const cleaned = raw.replace(/```json|```/g, "").trim();
+  const parsed = JSON.parse(cleaned);
+  const pair = (key: string) => ({
+    A: Number(parsed[key]?.A) || 50,
+    B: Number(parsed[key]?.B) || 50,
+  });
+  return {
+    score: Number(parsed.score) || 70,
+    patience: pair("patience"),
+    power: pair("power"),
+    stress: pair("stress"),
+    obsession: pair("obsession"),
+    love: pair("love"),
+    filter: pair("filter"),
+    baby: pair("baby"),
+    savings: pair("savings"),
+    cost_eff: pair("cost_eff"),
+    punchline: parsed.punchline ?? "",
+  };
+}
+
 export async function generateFreeReading(
   saju: SajuData,
   input: SajuInputForm,
@@ -162,7 +270,7 @@ export async function generateFreeReading(
   const currentMonth = now.getMonth() + 1;
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
@@ -222,4 +330,26 @@ export async function generateSajuReading(
   input: SajuInputForm,
 ): Promise<string> {
   return generatePaidReading(saju, input);
+}
+
+export async function generateCompatibilityReading(
+  user1: { name: string; ilju: string },
+  user2: { name: string; ilju: string },
+  relationship: string,
+): Promise<string> {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "user",
+        content: RELATIONSHIP_REPORT_PROMPT(user1, user2, relationship),
+      },
+    ],
+    temperature: 0.5,
+    max_tokens: 400,
+    response_format: { type: "json_object" }, // JSON 모드 강제
+  });
+  const raw = completion.choices[0]?.message?.content ?? "{}";
+  // 캐시 저장/전달을 위해 정규화된 JSON string 반환
+  return JSON.stringify(parseCompatibilityJson(raw));
 }

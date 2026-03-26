@@ -73,17 +73,44 @@ export default function Home() {
           </p>
 
           {/* CTA 버튼 */}
-          <Link
-            href="/saju/input"
-            className="font-semibold px-10 py-4 rounded-full text-base shadow-md transition-all active:scale-95 hover:shadow-lg hover:brightness-105"
-            style={{
-              background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
-              color: "#fff",
-              boxShadow: "0 4px 20px rgba(165, 124, 255, 0.35)",
-            }}
-          >
-            나의 운명 궤도 확인하기 ✨
-          </Link>
+          <div className="flex flex-col items-center gap-3 w-full max-w-xs">
+            <Link
+              href="/saju/input"
+              className="w-full text-center font-semibold px-10 py-4 rounded-full text-base shadow-md transition-all active:scale-95 hover:shadow-lg hover:brightness-105"
+              style={{
+                background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
+                color: "#fff",
+                boxShadow: "0 4px 20px rgba(165, 124, 255, 0.35)",
+              }}
+            >
+              나의 운명 궤도 확인하기 ✨
+            </Link>
+            <div className="relative w-full">
+              <Link
+                href="/saju/compatibility"
+                className="block w-full text-center font-semibold px-10 py-4 rounded-full text-base shadow-md transition-all active:scale-95 hover:shadow-lg hover:brightness-105"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #FFB6C1 0%, #FF85A1 100%)",
+                  color: "#fff",
+                  boxShadow: "0 4px 20px rgba(255, 133, 161, 0.35)",
+                }}
+              >
+                우리 궁합 성적표 💘
+              </Link>
+              <span
+                className="absolute -top-2.5 -right-1 text-[10px] font-bold px-2 py-0.5 rounded-full shadow"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #FF6B9D 0%, #FF3D6B 100%)",
+                  color: "#fff",
+                  letterSpacing: "0.03em",
+                }}
+              >
+                무료
+              </span>
+            </div>
+          </div>
           <p className="mt-4 text-xs" style={{ color: "#B8AACF" }}>
             처음 입력은 무료 · 결제는 나중에
           </p>

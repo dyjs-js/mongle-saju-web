@@ -576,6 +576,22 @@ export default function SajuInputPage() {
           <p className="text-center text-xs" style={{ color: "#C0B4D8" }}>
             처음 입력은 무료 · 결제는 나중에
           </p>
+
+          {/* 궁합 보기 아웃라인 버튼 */}
+          <Link
+            href="/saju/compatibility"
+            className="flex items-center justify-center gap-1.5 w-full py-3.5 rounded-2xl text-sm font-bold transition-all active:scale-95"
+            style={{
+              border: "1.5px solid rgba(165,124,255,0.55)",
+              color: "#A57CFF",
+              background: "rgba(165,124,255,0.04)",
+            }}
+          >
+            💘 우리 궁합은?{" "}
+            <span className="font-normal text-xs opacity-70">
+              (무료 체험하기)
+            </span>
+          </Link>
         </form>
       </div>
     </main>
