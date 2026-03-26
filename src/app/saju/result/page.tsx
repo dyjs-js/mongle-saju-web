@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AccordionResult } from "@/components/saju/SajuRenderer";
+import { createClient } from "@/lib/supabase/client";
 
 const BG = "linear-gradient(160deg, #F3EEFF 0%, #F8F9FF 50%, #EEF3FF 100%)";
 
@@ -20,6 +21,7 @@ export default function SajuResultPage() {
   const [paidError, setPaidError] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
+  const [loginToast, setLoginToast] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -81,7 +83,17 @@ export default function SajuResultPage() {
       .finally(() => setFreeLoading(false));
   }, [router]);
 
-  function handleUpgrade() {
+  async function handleUpgrade() {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoginToast(true);
+      setTimeout(() => {
+        setLoginToast(false);
+        router.push("/login?next=/saju/result");
+      }, 2000);
+      return;
+    }
     fetchPremium();
   }
 
@@ -275,6 +287,34 @@ export default function SajuResultPage() {
       className="min-h-screen flex flex-col items-center px-4 py-10"
       style={{ background: BG }}
     >
+      {/* 로그인 필요 토스트 */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 32,
+          left: "50%",
+          transform: `translateX(-50%) translateY(${loginToast ? "0" : "20px"})`,
+          opacity: loginToast ? 1 : 0,
+          transition: "opacity 0.3s ease, transform 0.3s ease",
+          pointerEvents: "none",
+          zIndex: 9999,
+          background: "rgba(45,49,66,0.92)",
+          backdropFilter: "blur(8px)",
+          color: "#fff",
+          borderRadius: 16,
+          padding: "12px 20px",
+          fontSize: 13,
+          fontWeight: 600,
+          whiteSpace: "nowrap",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        🔐 결제를 위해서는 로그인이 필요해요! 로그인 화면으로 이동할게요
+      </div>
+
       <div className="w-full max-w-md">
         <Link
           href="/saju/input"
