@@ -356,10 +356,16 @@ export default function MyPage() {
   async function handleDelete(id: string) {
     setDeletingId(id);
     try {
-      const supabase = createClient();
-      await supabase.from("saju_results").delete().eq("id", id);
+      const res = await fetch("/api/my/results", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error("삭제 실패");
       setResults((prev) => prev.filter((r) => r.id !== id));
       if (selected?.id === id) setSelected(null);
+    } catch {
+      alert("삭제 중 오류가 발생했어요. 다시 시도해주세요.");
     } finally {
       setDeletingId(null);
       setDeleteConfirm(null);
