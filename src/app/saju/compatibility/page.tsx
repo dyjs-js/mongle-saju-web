@@ -37,8 +37,8 @@ const DEFAULT2: Person = {
 
 export default function CompatibilityPage() {
   const router = useRouter();
-  const [me, setMe] = useState<Person>({ ...DEFAULT1 });
-  const [partner, setPartner] = useState<Person>({ ...DEFAULT2 });
+  const [me, setMe] = useState<Person>({ ...EMPTY });
+  const [partner, setPartner] = useState<Person>({ ...EMPTY });
   const [relationship, setRelationship] = useState("연인");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
