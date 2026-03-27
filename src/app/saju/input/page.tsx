@@ -214,7 +214,7 @@ export default function SajuInputPage() {
               type="text"
               value={form.name}
               onChange={(e) => handleChange("name", e.target.value)}
-              placeholder="홍길동"
+              placeholder="김몽글"
               required
               className={inputClass}
             />
