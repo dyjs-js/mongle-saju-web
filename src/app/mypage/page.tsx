@@ -217,9 +217,11 @@ function ResultModal({
 function ResultCard({
   result,
   onClick,
+  onDelete,
 }: {
   result: SajuResult;
   onClick: () => void;
+  onDelete: (id: string) => void;
 }) {
   const snap = result.input_snapshot;
   const concerns = (snap?.concerns ?? []) as SajuConcern[];
@@ -232,65 +234,86 @@ function ResultCard({
     .slice(0, 80);
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left rounded-2xl p-4 transition-all active:scale-[0.98] hover:shadow-md"
+    <div
+      className="w-full rounded-2xl transition-all hover:shadow-md"
       style={{
         background: "rgba(255,255,255,0.90)",
         border: "1px solid rgba(196,160,255,0.25)",
         boxShadow: "0 2px 12px rgba(165,124,255,0.07)",
       }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          {/* 이름 + 날짜 */}
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="font-bold text-sm" style={{ color: "#2D3142" }}>
-              {snap?.name ?? "—"}
-            </span>
-            <span
-              className="text-xs px-2 py-0.5 rounded-full"
-              style={{
-                background:
-                  result.category === "premium"
-                    ? "rgba(165,124,255,0.15)"
-                    : "rgba(196,160,255,0.10)",
-                color: result.category === "premium" ? "#A57CFF" : "#9B8ABE",
-              }}
+      <button
+        onClick={onClick}
+        className="w-full text-left p-4 active:scale-[0.98] transition-all"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            {/* 이름 + 날짜 */}
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="font-bold text-sm" style={{ color: "#2D3142" }}>
+                {snap?.name ?? "—"}
+              </span>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{
+                  background:
+                    result.category === "premium"
+                      ? "rgba(165,124,255,0.15)"
+                      : "rgba(196,160,255,0.10)",
+                  color: result.category === "premium" ? "#A57CFF" : "#9B8ABE",
+                }}
+              >
+                {result.category === "premium" ? "✨ 완전풀이" : "미리보기"}
+              </span>
+            </div>
+
+            {/* 생년월일 · 고민 */}
+            <p className="text-xs mb-2" style={{ color: "#9B8ABE" }}>
+              {snap?.birth_date} · {snap?.gender === "male" ? "남" : "여"} ·{" "}
+              {snap?.is_solar ? "양력" : "음력"}
+              {concerns.length > 0 && (
+                <span className="ml-1 text-[#C4A0FF]">
+                  · {concerns.join(" · ")}
+                </span>
+              )}
+            </p>
+
+            {/* 내용 미리보기 */}
+            <p
+              className="text-xs leading-relaxed line-clamp-2"
+              style={{ color: "#7B6FA0" }}
             >
-              {result.category === "premium" ? "✨ 완전풀이" : "미리보기"}
-            </span>
+              {preview}…
+            </p>
           </div>
 
-          {/* 생년월일 · 고민 */}
-          <p className="text-xs mb-2" style={{ color: "#9B8ABE" }}>
-            {snap?.birth_date} · {snap?.gender === "male" ? "남" : "여"} ·{" "}
-            {snap?.is_solar ? "양력" : "음력"}
-            {concerns.length > 0 && (
-              <span className="ml-1 text-[#C4A0FF]">
-                · {concerns.join(" · ")}
-              </span>
-            )}
-          </p>
-
-          {/* 내용 미리보기 */}
-          <p
-            className="text-xs leading-relaxed line-clamp-2"
-            style={{ color: "#7B6FA0" }}
-          >
-            {preview}…
-          </p>
+          {/* 날짜 + 화살표 */}
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <span className="text-xs" style={{ color: "#C0B4D8" }}>
+              {dateStr}
+            </span>
+            <span style={{ color: "#C4A0FF", fontSize: 16 }}>›</span>
+          </div>
         </div>
+      </button>
 
-        {/* 날짜 + 화살표 */}
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          <span className="text-xs" style={{ color: "#C0B4D8" }}>
-            {dateStr}
-          </span>
-          <span style={{ color: "#C4A0FF", fontSize: 16 }}>›</span>
-        </div>
+      {/* 삭제 버튼 */}
+      <div
+        className="px-4 pb-3 flex justify-end"
+        style={{ borderTop: "1px solid rgba(196,160,255,0.12)" }}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(result.id);
+          }}
+          className="flex items-center gap-1 text-xs py-1.5 px-3 rounded-xl transition-all hover:bg-red-50 active:scale-95"
+          style={{ color: "#E05050" }}
+        >
+          🗑️ 삭제
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -301,6 +324,8 @@ export default function MyPage() {
   const [results, setResults] = useState<SajuResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<SajuResult | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null); // 삭제 확인 중인 id
 
   useEffect(() => {
     const supabase = createClient();
@@ -326,6 +351,19 @@ export default function MyPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.replace("/");
+  }
+
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    try {
+      const supabase = createClient();
+      await supabase.from("saju_results").delete().eq("id", id);
+      setResults((prev) => prev.filter((r) => r.id !== id));
+      if (selected?.id === id) setSelected(null);
+    } finally {
+      setDeletingId(null);
+      setDeleteConfirm(null);
+    }
   }
 
   if (loading) {
@@ -466,13 +504,53 @@ export default function MyPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-3 pb-12">
-              {results.map((r) => (
-                <ResultCard
-                  key={r.id}
-                  result={r}
-                  onClick={() => setSelected(r)}
-                />
-              ))}
+              {results.map((r) =>
+                deleteConfirm === r.id ? (
+                  // 삭제 확인 UI
+                  <div
+                    key={r.id}
+                    className="rounded-2xl p-4 flex items-center justify-between gap-3"
+                    style={{
+                      background: "rgba(255,240,240,0.95)",
+                      border: "1px solid rgba(224,80,80,0.25)",
+                    }}
+                  >
+                    <p
+                      className="text-sm font-medium"
+                      style={{ color: "#2D3142" }}
+                    >
+                      이 풀이를 삭제할까요?
+                    </p>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => setDeleteConfirm(null)}
+                        className="text-xs px-3 py-1.5 rounded-xl font-medium"
+                        style={{
+                          background: "rgba(196,160,255,0.15)",
+                          color: "#7C5CBF",
+                        }}
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={() => handleDelete(r.id)}
+                        disabled={deletingId === r.id}
+                        className="text-xs px-3 py-1.5 rounded-xl font-bold disabled:opacity-60"
+                        style={{ background: "#E05050", color: "#fff" }}
+                      >
+                        {deletingId === r.id ? "삭제 중..." : "삭제"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <ResultCard
+                    key={r.id}
+                    result={r}
+                    onClick={() => setSelected(r)}
+                    onDelete={(id) => setDeleteConfirm(id)}
+                  />
+                ),
+              )}
             </div>
           )}
         </div>
