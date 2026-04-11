@@ -11,6 +11,7 @@ const TEST_PROMPT = (
   month: number,
   raw: import("@/types").SajuRawResult,
   gender: string,
+  name: string,
 ) => `
 **현재 시점은 ${year}년 ${month}월입니다.** 모든 분석은 ${year}년을 기준으로 진행하세요.
 
@@ -22,8 +23,11 @@ const TEST_PROMPT = (
 - 아래 [만세력 데이터]에 제공된 사주 원국을 그대로 사용하라.
 - 날짜를 임의로 재계산하거나 사주팔자를 변경하는 것을 절대 금지한다.
 - 일간(Day Master)은 반드시 **${raw.dayPillar[0]}(${raw.dayPillarHanja[0]})** 이다. 이것만을 기준으로 분석하라.
+- 호칭은 반드시 **${name}님**으로만 불러라. "귀하", "당신" 사용 금지.
+- 대화체로, 다정하게, 2030 여성인 친구에게 말하듯 써줘
 
 **[만세력 데이터 — @fullstackfamily/manseryeok 계산 결과]**
+- 이름: ${name}
 - 성별: ${gender}
 - 사주 원국:
   * 년주: ${raw.yearPillarHanja} (${raw.yearPillar})
@@ -34,22 +38,23 @@ const TEST_PROMPT = (
 **[Instructions]**
 1. 위 만세력 데이터를 그대로 사용하여 일간의 특성과 오행 구성을 분석할 것.
 2. 한자 나열보다 풀이 위주로 서술하고, 마크다운을 활용해 가독성 좋게 작성할 것.
-3. 톤앤매너: 따뜻하면서도 예리한 통찰력이 느껴지는 상담가 톤.
-4. 반드시 아래 JSON 스키마 형식으로만 응답할 것.
+3. **한자 사용 원칙**: 한자는 처음 1회만 병기(예: 무토(戊土))하고, 이후에는 한글로만 표기할 것. 같은 한자를 반복 사용 금지.
+4. 톤앤매너: 따뜻하면서도 예리한 통찰력이 느껴지는 상담가 톤.
+5. 반드시 아래 JSON 스키마 형식으로만 응답할 것.
 
 **[JSON Response Schema]**
 \`\`\`json
 {
   "saju_summary": "사주를 한 문장으로 정의하는 매력적인 수식어",
-  "mulsangron": "### 1. [물상론]\\n사주의 오행 구성을 하나의 그림처럼 묘사한 풀이 (마크다운)",
-  "psychology": "### 2. [현대 심리학]\\n기질적 강점, 무의식적 결핍, 방어기제 분석 (마크다운)",
-  "counseling": "### 3. [상담적 통찰]\\n용신/희신과 주의해야 할 기운, 삶의 조언 (마크다운)",
+  "mulsangron": "### 1. [물상론]\\n사주의 오행 구성을 하나의 그림처럼 묘사한 풀이 (마크다운, ${name}님 호칭 사용)",
+  "psychology": "### 2. [현대 심리학]\\n기질적 강점, 무의식적 결핍, 방어기제 분석 (마크다운, ${name}님 호칭 사용)",
+  "counseling": "### 3. [상담적 통찰]\\n용신/희신과 주의해야 할 기운, 삶의 조언 (마크다운, ${name}님 호칭 사용)",
   "advice": {
     "action": "구체적인 행동 지침 (운동, 공부법, 대인관계 팁 등)",
     "current_luck": "현재 운의 흐름과 연계된 조언",
     "mindset": "마음가짐에 대한 조언"
   },
-  "closing": "${year}년 하반기 전망과 따뜻한 격려 (3줄 이내)"
+  "closing": "${year}년 하반기 ${name}님을 위한 전망과 따뜻한 격려 (3줄 이내)"
 }
 \`\`\`
 `;
@@ -351,11 +356,15 @@ export async function generateFreeReading(
   const userPrompt = `⚠️ 현재 시점: ${currentYear}년 ${currentMonth}월입니다. 반드시 ${currentYear}년을 기준으로 분석하고, ${currentYear - 1}년 이전 연도는 절대 언급하지 마세요.\n\n유저 추가 정보:\n${sajuInfo}`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash-preview-04-17",
-    contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n---\n\n${userPrompt}` }] }],
+    model: "gemini-2.5-flash",
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `${systemPrompt}\n\n---\n\n${userPrompt}` }],
+      },
+    ],
     config: {
       temperature: 0.8,
-      maxOutputTokens: 1200,
     },
   });
 
@@ -384,8 +393,13 @@ export async function generatePaidReading(
   const userPrompt = `⚠️ 현재 시점: ${currentYear}년 ${currentMonth}월입니다. 반드시 ${currentYear}년을 기준으로 분석하고, ${currentYear - 1}년 이전 연도는 절대 언급하지 마세요. 미래운은 ${currentYear}년 하반기부터 시작하세요.\n\n유저 추가 정보:\n${sajuInfo}`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash-preview-04-17",
-    contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n---\n\n${userPrompt}` }] }],
+    model: "gemini-2.5-flash",
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `${systemPrompt}\n\n---\n\n${userPrompt}` }],
+      },
+    ],
     config: {
       temperature: 0.85,
       maxOutputTokens: 12000,
@@ -411,8 +425,15 @@ export async function generateCompatibilityReading(
   const ai = await getGemini();
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash-preview-04-17",
-    contents: [{ role: "user", parts: [{ text: RELATIONSHIP_REPORT_PROMPT(user1, user2, relationship) }] }],
+    model: "gemini-2.5-flash",
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: RELATIONSHIP_REPORT_PROMPT(user1, user2, relationship) },
+        ],
+      },
+    ],
     config: {
       responseMimeType: "application/json",
       temperature: 0.5,
@@ -436,15 +457,21 @@ export async function generateTestReading(
   const currentMonth = now.getMonth() + 1;
   const gender = input.gender === "male" ? "남성" : "여성";
 
-  const prompt = TEST_PROMPT(currentYear, currentMonth, saju.raw, gender);
+  const prompt = TEST_PROMPT(
+    currentYear,
+    currentMonth,
+    saju.raw,
+    gender,
+    input.name,
+  );
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash-preview-04-17",
+    model: "gemini-2.5-flash",
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     config: {
       responseMimeType: "application/json",
       temperature: 0.8,
-      maxOutputTokens: 3000,
+      maxOutputTokens: 8000,
     },
   });
 

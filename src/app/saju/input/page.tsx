@@ -39,7 +39,7 @@ const RELATIONSHIP_STATUS_OPTIONS: {
 const INITIAL_FORM: SajuInputForm = {
   name: "",
   birth_date: "",
-  birth_time: "11:00",
+  birth_time: "11:10",
   is_solar: true,
   gender: "female",
   birth_time_unknown: false,
@@ -49,7 +49,7 @@ const INITIAL_FORM: SajuInputForm = {
 const DEV_FORM: SajuInputForm = {
   name: "연지수",
   birth_date: "1992-09-29",
-  birth_time: "11:00",
+  birth_time: "11:10",
   is_solar: true,
   gender: "female",
   birth_time_unknown: false,

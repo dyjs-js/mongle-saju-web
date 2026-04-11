@@ -62,14 +62,14 @@ export default function CompatibilityPage() {
         user1: {
           ...me,
           is_solar: true,
-          birth_time: "11:00",
+          birth_time: "11:10",
           birth_time_unknown: true,
           concerns: [],
         },
         user2: {
           ...partner,
           is_solar: true,
-          birth_time: "11:00",
+          birth_time: "11:10",
           birth_time_unknown: true,
           concerns: [],
         },

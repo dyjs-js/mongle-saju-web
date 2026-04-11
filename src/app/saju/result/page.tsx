@@ -28,36 +28,16 @@ export default function SajuResultPage() {
   const isDev = process.env.NODE_ENV === "development";
   const resultRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const inputRaw = sessionStorage.getItem("saju_input");
-    if (!inputRaw) {
-      router.replace("/saju/input");
-      return;
-    }
-    const input = JSON.parse(inputRaw);
-
-    // [Layer 1] localStorage 캐시 확인 — 오늘 날짜 기준
+  const fetchFree = (input: unknown) => {
     const CACHE_KEY = "mongle_free_result";
     const today = new Date().toISOString().slice(0, 10);
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached) as { date: string; content: string };
-        if (parsed.date === today && parsed.content) {
-          setFreeContent(parsed.content);
-          setFreeLoading(false);
-          return; // API 호출 없이 즉시 렌더링
-        }
-      }
-    } catch {
-      /* localStorage 접근 실패 무시 */
-    }
-
+    setFreeLoading(true);
+    setFreeError(null);
     fetch("/api/saju", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Request-Type": "free", // [Layer 2] IP rate limit 헤더
+        "X-Request-Type": "free",
       },
       body: JSON.stringify({ input, type: "free" }),
     })
@@ -71,21 +51,56 @@ export default function SajuResultPage() {
         }
         if (data.error) throw new Error(data.error);
 
-        // [Layer 1] 결과를 localStorage에 저장
-        try {
-          localStorage.setItem(
-            CACHE_KEY,
-            JSON.stringify({ date: today, content: data.content }),
-          );
-        } catch {
-          /* 무시 */
+        // localStorage 저장 (dev 환경 및 어드민 제외)
+        if (process.env.NODE_ENV !== "development" && !data.is_admin) {
+          try {
+            localStorage.setItem(
+              CACHE_KEY,
+              JSON.stringify({ date: today, content: data.content }),
+            );
+          } catch {
+            /* 무시 */
+          }
         }
 
         setFreeContent(data.content);
       })
       .catch((err) => setFreeError(err.message ?? "오류가 발생했습니다."))
       .finally(() => setFreeLoading(false));
-  }, [router]);
+  };
+
+  useEffect(() => {
+    const inputRaw = sessionStorage.getItem("saju_input");
+    if (!inputRaw) {
+      router.replace("/saju/input");
+      return;
+    }
+    const input = JSON.parse(inputRaw);
+
+    // [Layer 1] localStorage 캐시 확인 — 오늘 날짜 기준 (dev 환경에서는 스킵)
+    const CACHE_KEY = "mongle_free_result";
+    const today = new Date().toISOString().slice(0, 10);
+    if (process.env.NODE_ENV !== "development") {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached) as {
+            date: string;
+            content: string;
+          };
+          if (parsed.date === today && parsed.content) {
+            setFreeContent(parsed.content);
+            setFreeLoading(false);
+            return; // API 호출 없이 즉시 렌더링
+          }
+        }
+      } catch {
+        /* localStorage 접근 실패 무시 */
+      }
+    }
+
+    fetchFree(input);
+  }, [router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleUpgrade() {
     const supabase = createClient();
@@ -238,7 +253,7 @@ export default function SajuResultPage() {
   if (freeError) {
     const isDailyLimit = freeError === "daily_limit_exceeded";
     const isIpLimit = freeError === "ip_rate_limit_exceeded";
-    const isLimit = isDailyLimit || isIpLimit;
+    const isLimit = isDailyLimit; // IP limit은 재시도로 해결 가능 → limit 취급 안 함
 
     return (
       <main
@@ -259,14 +274,14 @@ export default function SajuResultPage() {
             {isDailyLimit
               ? "오늘의 무료 체험이 모두 마감됐어요"
               : isIpLimit
-                ? "오늘 무료 체험 횟수를 모두 사용했어요"
+                ? "잠시 후 다시 시도해주세요"
                 : "풀이 중 오류가 발생했어요"}
           </p>
           <p className="text-sm leading-relaxed" style={{ color: "#9B8ABE" }}>
             {isDailyLimit
               ? "오늘 준비된 500개의 무료 궤도가 모두 소진됐어요.\n내일 오전 00시에 다시 열려요!"
               : isIpLimit
-                ? "하루 3회까지 무료로 확인할 수 있어요."
+                ? "짧은 시간에 요청이 너무 많아요. 잠깐 기다렸다가 다시 시도해보세요."
                 : freeError}
           </p>
         </div>
@@ -289,17 +304,29 @@ export default function SajuResultPage() {
             </p>
           </div>
         ) : (
-          <button
-            onClick={() => router.push("/saju/input")}
-            className="font-medium px-8 py-3 rounded-full transition-all active:scale-95"
-            style={{
-              background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
-              color: "#fff",
-              boxShadow: "0 4px 16px rgba(165,124,255,0.30)",
-            }}
-          >
-            다시 시도하기
-          </button>
+          <div className="flex flex-col gap-2 w-full max-w-xs">
+            <button
+              onClick={() => {
+                const inputRaw = sessionStorage.getItem("saju_input");
+                if (inputRaw) fetchFree(JSON.parse(inputRaw));
+              }}
+              className="font-bold px-8 py-3.5 rounded-2xl transition-all active:scale-95 text-sm"
+              style={{
+                background: "linear-gradient(135deg, #B98EFF 0%, #A57CFF 100%)",
+                color: "#fff",
+                boxShadow: "0 4px 16px rgba(165,124,255,0.30)",
+              }}
+            >
+              다시 시도하기
+            </button>
+            <button
+              onClick={() => router.push("/saju/input")}
+              className="font-medium px-8 py-3 rounded-full transition-all active:scale-95 text-sm"
+              style={{ color: "#9B8ABE" }}
+            >
+              처음으로 돌아가기
+            </button>
+          </div>
         )}
       </main>
     );
@@ -603,19 +630,128 @@ export default function SajuResultPage() {
             >
               {testLoading ? "⏳ 생성 중..." : "🧪 테스트 풀이 생성"}
             </button>
-            {testContent && (
-              <div
-                className="rounded-2xl p-4"
-                style={{
-                  background: "rgba(255,255,255,0.85)",
-                  border: "1px solid rgba(200,160,0,0.2)",
-                  maxHeight: 500,
-                  overflowY: "auto",
-                }}
-              >
-                <MarkdownContent content={testContent} />
-              </div>
-            )}
+            {testContent &&
+              (() => {
+                let parsed: Record<string, unknown> | null = null;
+                try {
+                  parsed = JSON.parse(testContent);
+                } catch {
+                  /* raw */
+                }
+
+                if (parsed) {
+                  const summary = parsed.saju_summary
+                    ? String(parsed.saju_summary)
+                    : null;
+                  const closing = parsed.closing
+                    ? String(parsed.closing)
+                    : null;
+                  const advice =
+                    parsed.advice && typeof parsed.advice === "object"
+                      ? (parsed.advice as Record<string, string>)
+                      : null;
+                  return (
+                    <div
+                      className="rounded-2xl p-4 space-y-3"
+                      style={{
+                        background: "rgba(255,255,255,0.85)",
+                        border: "1px solid rgba(200,160,0,0.2)",
+                        maxHeight: 560,
+                        overflowY: "auto",
+                      }}
+                    >
+                      {summary && (
+                        <p
+                          className="font-bold text-sm"
+                          style={{ color: "#9B6E00" }}
+                        >
+                          ✨ {summary}
+                        </p>
+                      )}
+                      {(
+                        ["mulsangron", "psychology", "counseling"] as const
+                      ).map((k) =>
+                        parsed![k] ? (
+                          <div
+                            key={k}
+                            className="border-t pt-2"
+                            style={{ borderColor: "rgba(200,160,0,0.15)" }}
+                          >
+                            <MarkdownContent content={String(parsed![k])} />
+                          </div>
+                        ) : null,
+                      )}
+                      {advice && (
+                        <div
+                          className="border-t pt-2 space-y-1"
+                          style={{ borderColor: "rgba(200,160,0,0.15)" }}
+                        >
+                          <p
+                            className="font-bold text-xs"
+                            style={{ color: "#7A5F00" }}
+                          >
+                            💡 상담 제언
+                          </p>
+                          {Object.entries(advice).map(([k, v]) => (
+                            <p
+                              key={k}
+                              className="text-xs"
+                              style={{ color: "#3A3A3A" }}
+                            >
+                              • {v}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      {closing && (
+                        <div
+                          className="border-t pt-2"
+                          style={{ borderColor: "rgba(200,160,0,0.15)" }}
+                        >
+                          <p
+                            className="font-bold text-xs mb-1"
+                            style={{ color: "#7A5F00" }}
+                          >
+                            💌 마무리
+                          </p>
+                          <p
+                            className="text-xs leading-relaxed"
+                            style={{ color: "#3A3A3A" }}
+                          >
+                            {closing}
+                          </p>
+                        </div>
+                      )}
+                      <details
+                        className="border-t pt-2"
+                        style={{ borderColor: "rgba(200,160,0,0.15)" }}
+                      >
+                        <summary className="cursor-pointer text-[10px] opacity-50">
+                          raw JSON 보기
+                        </summary>
+                        <pre className="text-[10px] mt-1 overflow-x-auto">
+                          {JSON.stringify(parsed, null, 2)}
+                        </pre>
+                      </details>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    className="rounded-2xl p-4 text-xs leading-relaxed whitespace-pre-wrap"
+                    style={{
+                      background: "rgba(255,255,255,0.85)",
+                      color: "#3A3A3A",
+                      border: "1px solid rgba(200,160,0,0.2)",
+                      maxHeight: 500,
+                      overflowY: "auto",
+                    }}
+                  >
+                    {testContent}
+                  </div>
+                );
+              })()}
           </div>
         )}
       </div>

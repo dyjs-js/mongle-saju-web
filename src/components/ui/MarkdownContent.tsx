@@ -73,9 +73,11 @@ export default function MarkdownContent({
   content,
   className = "",
 }: MarkdownContentProps) {
+  // JSON 문자열 내 이스케이프된 \n을 실제 줄바꿈으로 변환
+  const normalized = content.replace(/\\n/g, "\n");
   return (
     <div className={`text-sm ${className}`}>
-      <ReactMarkdown components={components}>{content}</ReactMarkdown>
+      <ReactMarkdown components={components}>{normalized}</ReactMarkdown>
     </div>
   );
 }

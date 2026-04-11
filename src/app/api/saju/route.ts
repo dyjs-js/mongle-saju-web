@@ -53,24 +53,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ content, type: "test" });
     }
 
-    const rateLimit =
-      type === "free"
-        ? checkRateLimit(`saju-free:${ip}`, 5, 60_000)
-        : checkRateLimit(`saju-paid:${ip}`, 3, 60_000);
-
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: "ip_rate_limit_exceeded" },
-        { status: 429 },
-      );
-    }
-
     const supabase = await createClient();
 
     // 로그인 여부 확인 (실패해도 계속 진행)
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    // 어드민 여부 확인
+    let isAdmin = false;
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+      isAdmin = profile?.is_admin === true;
+      console.log(
+        `[API/saju] user=${user.id} is_admin=${profile?.is_admin} → isAdmin=${isAdmin}`,
+      );
+    } else {
+      console.log(`[API/saju] user=null (not logged in or cookie missing)`);
+    }
+
+    // ── IP Rate Limit (어드민 제외) ────────────────────────────────
+    if (!isAdmin) {
+      const rateLimit =
+        type === "free"
+          ? checkRateLimit(`saju-free:${ip}`, 5, 60_000)
+          : checkRateLimit(`saju-paid:${ip}`, 3, 60_000);
+
+      if (!rateLimit.allowed) {
+        return NextResponse.json(
+          { error: "ip_rate_limit_exceeded" },
+          { status: 429 },
+        );
+      }
+    }
 
     // 입력값 검증
     if (!input.name || !input.birth_date || !input.gender) {
@@ -82,41 +101,49 @@ export async function POST(request: Request) {
 
     // ── 무료 버전: 글로벌 쿼터 체크 후 생성 ─────────────────────────
     if (type === "free") {
-      // [Layer 3] 오늘의 전체 무료 호출 수 확인
-      const { data: statsData } = await supabase.rpc("get_today_free_stats");
-      const stats = statsData as {
-        free_count: number;
-        max_limit: number;
-      } | null;
-      const currentCount = stats?.free_count ?? 0;
-      const maxLimit = stats?.max_limit ?? FREE_DAILY_LIMIT;
+      // [Layer 3] 오늘의 전체 무료 호출 수 확인 (어드민 제외)
+      if (!isAdmin) {
+        const { data: statsData } = await supabase.rpc("get_today_free_stats");
+        const stats = statsData as {
+          free_count: number;
+          max_limit: number;
+        } | null;
+        const currentCount = stats?.free_count ?? 0;
+        const maxLimit = stats?.max_limit ?? FREE_DAILY_LIMIT;
 
-      if (currentCount >= maxLimit) {
-        return NextResponse.json(
-          {
-            error: "daily_limit_exceeded",
-            free_count: currentCount,
-            max_limit: maxLimit,
-          },
-          { status: 429 },
-        );
+        if (currentCount >= maxLimit) {
+          return NextResponse.json(
+            {
+              error: "daily_limit_exceeded",
+              free_count: currentCount,
+              max_limit: maxLimit,
+            },
+            { status: 429 },
+          );
+        }
+
+        const saju = calculateSaju(input);
+        const content = await generateFreeReading(saju, input);
+
+        // 카운트 증가 (실패해도 결과는 반환)
+        try {
+          await supabase.rpc("increment_free_count");
+        } catch {
+          /* ignore */
+        }
+
+        return NextResponse.json({
+          content,
+          type: "free",
+          is_admin: false,
+          remaining: Math.max(0, maxLimit - currentCount - 1),
+        });
       }
 
+      // 어드민: 쿼터/카운트 없이 바로 생성
       const saju = calculateSaju(input);
       const content = await generateFreeReading(saju, input);
-
-      // 카운트 증가 (실패해도 결과는 반환)
-      try {
-        await supabase.rpc("increment_free_count");
-      } catch {
-        /* ignore */
-      }
-
-      return NextResponse.json({
-        content,
-        type: "free",
-        remaining: Math.max(0, maxLimit - currentCount - 1),
-      });
+      return NextResponse.json({ content, type: "free", is_admin: true });
     }
 
     // ── 유료 버전: 캐싱 조회 후 GPT-4o 생성 ────────────────────────

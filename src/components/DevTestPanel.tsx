@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import MarkdownContent from "@/components/ui/MarkdownContent";
 
 const DEV_INPUT = {
   name: "연지수",
   birth_date: "1992-09-29",
-  birth_time: "11:00",
+  birth_time: "11:10",
   is_solar: true,
   gender: "female",
   birth_time_unknown: false,
@@ -74,20 +75,115 @@ export default function DevTestPanel() {
         >
           {loading ? "⏳ 생성 중..." : "🧪 테스트 풀이 생성"}
         </button>
-        {content && (
-          <div
-            className="rounded-2xl p-4 text-xs leading-relaxed whitespace-pre-wrap"
-            style={{
-              background: "rgba(255,255,255,0.90)",
-              color: "#3A3A3A",
-              border: "1px solid rgba(200,160,0,0.2)",
-              maxHeight: 500,
-              overflowY: "auto",
-            }}
-          >
-            {content}
-          </div>
-        )}
+        {content &&
+          (() => {
+            let parsed: Record<string, unknown> | null = null;
+            try {
+              parsed = JSON.parse(content);
+            } catch {
+              /* raw 표시 */
+            }
+
+            if (parsed) {
+              const summary = parsed.saju_summary
+                ? String(parsed.saju_summary)
+                : null;
+              const closing = parsed.closing ? String(parsed.closing) : null;
+              const advice =
+                parsed.advice && typeof parsed.advice === "object"
+                  ? (parsed.advice as Record<string, string>)
+                  : null;
+              return (
+                <div
+                  className="rounded-2xl p-4 space-y-3"
+                  style={{
+                    background: "rgba(255,255,255,0.90)",
+                    border: "1px solid rgba(200,160,0,0.2)",
+                    maxHeight: 560,
+                    overflowY: "auto",
+                  }}
+                >
+                  {summary && (
+                    <p
+                      className="font-bold text-sm"
+                      style={{ color: "#9B6E00" }}
+                    >
+                      ✨ {summary}
+                    </p>
+                  )}
+                  {(["mulsangron", "psychology", "counseling"] as const).map(
+                    (k) =>
+                      parsed![k] ? (
+                        <div
+                          key={k}
+                          className="border-t pt-2"
+                          style={{ borderColor: "rgba(200,160,0,0.15)" }}
+                        >
+                          <MarkdownContent content={String(parsed![k])} />
+                        </div>
+                      ) : null,
+                  )}
+                  {advice && (
+                    <div
+                      className="border-t pt-2 space-y-1"
+                      style={{ borderColor: "rgba(200,160,0,0.15)" }}
+                    >
+                      <p
+                        className="font-bold text-xs"
+                        style={{ color: "#7A5F00" }}
+                      >
+                        💡 상담 제언
+                      </p>
+                      {Object.entries(advice).map(([k, v]) => (
+                        <p
+                          key={k}
+                          className="text-xs"
+                          style={{ color: "#3A3A3A" }}
+                        >
+                          • {v}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {closing && (
+                    <div
+                      className="border-t pt-2"
+                      style={{ borderColor: "rgba(200,160,0,0.15)" }}
+                    >
+                      <p
+                        className="font-bold text-xs mb-1"
+                        style={{ color: "#7A5F00" }}
+                      >
+                        💌 마무리
+                      </p>
+                      <p
+                        className="text-xs leading-relaxed"
+                        style={{ color: "#3A3A3A" }}
+                      >
+                        {closing}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // JSON 파싱 실패 시 raw 표시
+            return (
+              <div
+                className="rounded-2xl p-4 text-xs leading-relaxed whitespace-pre-wrap"
+                style={{
+                  background: "rgba(255,255,255,0.90)",
+                  color: "#3A3A3A",
+                  border: "1px solid rgba(200,160,0,0.2)",
+                  maxHeight: 500,
+                  overflowY: "auto",
+                }}
+              >
+                {content}
+              </div>
+            );
+          })()}
       </div>
     </section>
   );

@@ -149,7 +149,7 @@ export default function CompatibilityResultPage() {
       birth_date: data.me.birth_date,
       gender: data.me.gender,
       is_solar: true,
-      birth_time: "11:00",
+      birth_time: "11:10",
       birth_time_unknown: false,
       concerns: ["전체운"] as const,
     };
