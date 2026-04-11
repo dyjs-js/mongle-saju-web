@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AuthHeader from "@/components/AuthHeader";
+import DevTestPanel from "@/components/DevTestPanel";
 
 const FEATURES = [
   {

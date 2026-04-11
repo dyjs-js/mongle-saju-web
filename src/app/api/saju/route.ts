@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { calculateSaju } from "@/services/saju";
-import { generateFreeReading, generatePaidReading } from "@/services/openai";
+import {
+  generateFreeReading,
+  generatePaidReading,
+  generateTestReading,
+} from "@/services/openai";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import type { SajuInputForm } from "@/types";
 
@@ -36,8 +40,18 @@ export async function POST(request: Request) {
     // ── IP Rate Limit: 무료 분당 5회 / 유료 분당 3회 ──────────────
     const ip = getIp(request);
     const body = await request.json();
-    const type: "free" | "premium" = body.type ?? "free";
+    const type: "free" | "premium" | "test" = body.type ?? "free";
     const input: SajuInputForm = body.input;
+
+    // ── 테스트 모드: dev 환경에서만 허용 ──────────────────────────
+    if (type === "test") {
+      if (process.env.NODE_ENV !== "development") {
+        return NextResponse.json({ error: "dev only" }, { status: 403 });
+      }
+      const saju = calculateSaju(input);
+      const content = await generateTestReading(saju, input);
+      return NextResponse.json({ content, type: "test" });
+    }
 
     const rateLimit =
       type === "free"

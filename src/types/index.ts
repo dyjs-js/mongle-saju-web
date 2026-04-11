@@ -40,11 +40,26 @@ export interface SajuPillar {
   jiji: string; // 지지
 }
 
+/** @fullstackfamily/manseryeok 원본 결과 (한자 + 보정 정보 포함) */
+export interface SajuRawResult {
+  yearPillar: string; // 한글 년주
+  yearPillarHanja: string; // 한자 년주
+  monthPillar: string;
+  monthPillarHanja: string;
+  dayPillar: string;
+  dayPillarHanja: string;
+  hourPillar: string | null;
+  hourPillarHanja: string | null;
+  isTimeCorrected: boolean;
+  correctedTime?: { hour: number; minute: number };
+}
+
 export interface SajuData {
   year_pillar: SajuPillar;
   month_pillar: SajuPillar;
   day_pillar: SajuPillar;
   hour_pillar: SajuPillar | null; // 시간 모를 경우 null
+  raw: SajuRawResult; // 라이브러리 원본 결과
 }
 
 // ─── AI 풀이 결과 ──────────────────────────────────────────────────

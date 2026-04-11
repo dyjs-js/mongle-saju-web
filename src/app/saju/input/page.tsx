@@ -4,21 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { SajuInputForm, SajuConcern, RelationshipStatus } from "@/types";
-
-const BIRTH_TIME_OPTIONS = [
-  { value: "00:00", label: "자시 (23:00 ~ 01:00)" },
-  { value: "01:00", label: "축시 (01:00 ~ 03:00)" },
-  { value: "03:00", label: "인시 (03:00 ~ 05:00)" },
-  { value: "05:00", label: "묘시 (05:00 ~ 07:00)" },
-  { value: "07:00", label: "진시 (07:00 ~ 09:00)" },
-  { value: "09:00", label: "사시 (09:00 ~ 11:00)" },
-  { value: "11:00", label: "오시 (11:00 ~ 13:00)" },
-  { value: "13:00", label: "미시 (13:00 ~ 15:00)" },
-  { value: "15:00", label: "신시 (15:00 ~ 17:00)" },
-  { value: "17:00", label: "유시 (17:00 ~ 19:00)" },
-  { value: "19:00", label: "술시 (19:00 ~ 21:00)" },
-  { value: "21:00", label: "해시 (21:00 ~ 23:00)" },
-];
+import MarkdownContent from "@/components/ui/MarkdownContent";
 
 const CONCERN_OPTIONS: {
   value: SajuConcern;
@@ -84,6 +70,8 @@ export default function SajuInputPage() {
   const [form, setForm] = useState<SajuInputForm>(DEFAULT_FORM);
   const [relationshipError, setRelationshipError] = useState(false);
   const isDev = process.env.NODE_ENV === "development";
+  const [testContent, setTestContent] = useState<string | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
 
   // 잔여 수량 상태
   const [quota, setQuota] = useState<{
@@ -156,6 +144,27 @@ export default function SajuInputPage() {
 
     sessionStorage.setItem("saju_input", JSON.stringify(form));
     router.push("/saju/result");
+  }
+
+  function fetchTest() {
+    if (!form.name || !form.birth_date) {
+      alert("이름과 생년월일을 입력해주세요.");
+      return;
+    }
+    setTestContent(null);
+    setTestLoading(true);
+    fetch("/api/saju", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input: form, type: "test" }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) throw new Error(d.error);
+        setTestContent(d.content);
+      })
+      .catch((err) => alert("테스트 오류: " + err.message))
+      .finally(() => setTestLoading(false));
   }
 
   return (
@@ -297,11 +306,27 @@ export default function SajuInputPage() {
               생년월일 <span style={{ color: "#A57CFF" }}>*</span>
             </label>
             <input
-              type="date"
+              type="text"
+              inputMode="numeric"
+              placeholder="예: 1992-09-29"
               value={form.birth_date}
-              onChange={(e) => handleChange("birth_date", e.target.value)}
+              onChange={(e) => {
+                // 숫자만 남기고 자동으로 YYYY-MM-DD 포맷 적용
+                const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+                let formatted = digits;
+                if (digits.length > 4)
+                  formatted = digits.slice(0, 4) + "-" + digits.slice(4);
+                if (digits.length > 6)
+                  formatted =
+                    digits.slice(0, 4) +
+                    "-" +
+                    digits.slice(4, 6) +
+                    "-" +
+                    digits.slice(6);
+                handleChange("birth_date", formatted);
+              }}
               required
-              max={new Date().toISOString().split("T")[0]}
+              maxLength={10}
               className={inputClass}
             />
           </div>
@@ -326,17 +351,13 @@ export default function SajuInputPage() {
               시간을 몰라요
             </label>
             {!form.birth_time_unknown && (
-              <select
+              <input
+                type="time"
                 value={form.birth_time}
                 onChange={(e) => handleChange("birth_time", e.target.value)}
                 className={inputClass}
-              >
-                {BIRTH_TIME_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                style={{ colorScheme: "light" }}
+              />
             )}
           </div>
 
@@ -592,6 +613,155 @@ export default function SajuInputPage() {
               (무료 체험하기)
             </span>
           </Link>
+
+          {/* 🧪 테스트 패널 (dev only) */}
+          {isDev && (
+            <div
+              className="rounded-2xl p-4 flex flex-col gap-3 mt-1"
+              style={{
+                background: "rgba(255,230,100,0.12)",
+                border: "1.5px dashed rgba(200,160,0,0.4)",
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span>🧪</span>
+                  <p className="text-sm font-bold" style={{ color: "#7A5F00" }}>
+                    테스트 프롬프트
+                  </p>
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                    style={{
+                      background: "rgba(255,180,0,0.2)",
+                      color: "#7A5F00",
+                    }}
+                  >
+                    dev only
+                  </span>
+                </div>
+                <span className="text-[10px]" style={{ color: "#9B8520" }}>
+                  gpt-4o-mini
+                </span>
+              </div>
+              <p className="text-xs" style={{ color: "#9B8520" }}>
+                위 폼에 입력된 사주로 물상론·심리학·상담 통찰 포맷 테스트
+              </p>
+              <button
+                type="button"
+                onClick={fetchTest}
+                disabled={testLoading}
+                className="w-full font-bold py-3 rounded-2xl text-sm transition-all active:scale-95 disabled:opacity-60"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)",
+                  color: "#3A2A00",
+                  boxShadow: "0 2px 12px rgba(255,180,0,0.30)",
+                }}
+              >
+                {testLoading ? "⏳ 생성 중..." : "🧪 테스트 풀이 생성"}
+              </button>
+              {testContent &&
+                (() => {
+                  let parsed: Record<string, unknown> | null = null;
+                  try {
+                    parsed = JSON.parse(testContent);
+                  } catch {
+                    /* raw 표시 */
+                  }
+                  if (parsed) {
+                    const summary = parsed.saju_summary
+                      ? String(parsed.saju_summary)
+                      : null;
+                    const closing = parsed.closing
+                      ? String(parsed.closing)
+                      : null;
+                    const advice =
+                      parsed.advice && typeof parsed.advice === "object"
+                        ? (parsed.advice as Record<string, string>)
+                        : null;
+                    return (
+                      <div
+                        className="rounded-xl p-3 text-xs leading-relaxed space-y-3"
+                        style={{
+                          background: "rgba(255,255,255,0.90)",
+                          color: "#3A3A3A",
+                          border: "1px solid rgba(200,160,0,0.2)",
+                          maxHeight: 500,
+                          overflowY: "auto",
+                        }}
+                      >
+                        {summary && (
+                          <p
+                            className="font-bold text-sm"
+                            style={{ color: "#9B6E00" }}
+                          >
+                            ✨ {summary}
+                          </p>
+                        )}
+                        {(
+                          ["mulsangron", "psychology", "counseling"] as const
+                        ).map((k) =>
+                          parsed![k] ? (
+                            <div
+                              key={k}
+                              className="border-t pt-2"
+                              style={{ borderColor: "rgba(200,160,0,0.15)" }}
+                            >
+                              <MarkdownContent content={String(parsed![k])} />
+                            </div>
+                          ) : null,
+                        )}
+                        {advice && (
+                          <div
+                            className="border-t pt-2 space-y-1"
+                            style={{ borderColor: "rgba(200,160,0,0.15)" }}
+                          >
+                            <p className="font-bold">💡 상담 제언</p>
+                            {Object.entries(advice).map(([k, v]) => (
+                              <p key={k}>• {v}</p>
+                            ))}
+                          </div>
+                        )}
+                        {closing && (
+                          <div
+                            className="border-t pt-2 whitespace-pre-wrap"
+                            style={{ borderColor: "rgba(200,160,0,0.15)" }}
+                          >
+                            <p className="font-bold">💌 마무리</p>
+                            <p>{closing}</p>
+                          </div>
+                        )}
+                        <details
+                          className="border-t pt-2"
+                          style={{ borderColor: "rgba(200,160,0,0.15)" }}
+                        >
+                          <summary className="cursor-pointer text-[10px] opacity-50">
+                            raw JSON 보기
+                          </summary>
+                          <pre className="text-[10px] mt-1 overflow-x-auto">
+                            {JSON.stringify(parsed, null, 2)}
+                          </pre>
+                        </details>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div
+                      className="rounded-xl p-3 text-xs leading-relaxed whitespace-pre-wrap"
+                      style={{
+                        background: "rgba(255,255,255,0.90)",
+                        color: "#3A3A3A",
+                        border: "1px solid rgba(200,160,0,0.2)",
+                        maxHeight: 400,
+                        overflowY: "auto",
+                      }}
+                    >
+                      {testContent}
+                    </div>
+                  );
+                })()}
+            </div>
+          )}
         </form>
       </div>
     </main>

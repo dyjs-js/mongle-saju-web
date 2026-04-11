@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AccordionResult } from "@/components/saju/SajuRenderer";
 import { createClient } from "@/lib/supabase/client";
+import MarkdownContent from "@/components/ui/MarkdownContent";
 
 const BG = "linear-gradient(160deg, #F3EEFF 0%, #F8F9FF 50%, #EEF3FF 100%)";
 
@@ -22,6 +23,9 @@ export default function SajuResultPage() {
 
   const [saving, setSaving] = useState(false);
   const [loginToast, setLoginToast] = useState(false);
+  const [testContent, setTestContent] = useState<string | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
+  const isDev = process.env.NODE_ENV === "development";
   const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -118,6 +122,26 @@ export default function SajuResultPage() {
       })
       .catch((err) => setPaidError(err.message ?? "오류가 발생했습니다."))
       .finally(() => setPaidLoading(false));
+  }
+
+  function fetchTest() {
+    const inputRaw = sessionStorage.getItem("saju_input");
+    if (!inputRaw) return;
+    const input = JSON.parse(inputRaw);
+    setTestContent(null);
+    setTestLoading(true);
+    fetch("/api/saju", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input, type: "test" }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        setTestContent(data.content);
+      })
+      .catch((err) => alert("테스트 오류: " + err.message))
+      .finally(() => setTestLoading(false));
   }
 
   function handleKakaoShare() {
@@ -548,6 +572,52 @@ export default function SajuResultPage() {
             홈으로
           </button>
         </div>
+
+        {/* ── 🧪 테스트 모드 (dev only) ── */}
+        {isDev && (
+          <div
+            className="mt-6 rounded-3xl p-5 flex flex-col gap-3"
+            style={{
+              background: "rgba(255,230,100,0.12)",
+              border: "1.5px dashed rgba(200,160,0,0.35)",
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base">🧪</span>
+              <p className="text-sm font-bold" style={{ color: "#7A5F00" }}>
+                테스트 프롬프트 (dev only)
+              </p>
+            </div>
+            <p className="text-xs" style={{ color: "#9B8520" }}>
+              물상론·심리학·상담 통찰 포맷 — gpt-4o-mini
+            </p>
+            <button
+              onClick={fetchTest}
+              disabled={testLoading}
+              className="w-full font-bold py-3 rounded-2xl text-sm transition-all active:scale-95 disabled:opacity-60"
+              style={{
+                background: "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)",
+                color: "#3A2A00",
+                boxShadow: "0 2px 12px rgba(255,180,0,0.30)",
+              }}
+            >
+              {testLoading ? "⏳ 생성 중..." : "🧪 테스트 풀이 생성"}
+            </button>
+            {testContent && (
+              <div
+                className="rounded-2xl p-4"
+                style={{
+                  background: "rgba(255,255,255,0.85)",
+                  border: "1px solid rgba(200,160,0,0.2)",
+                  maxHeight: 500,
+                  overflowY: "auto",
+                }}
+              >
+                <MarkdownContent content={testContent} />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );

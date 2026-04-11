@@ -1,93 +1,74 @@
-// lunar-javascript: 절기 기반 정확한 만세력 계산
-import { Solar, Lunar } from "lunar-javascript";
+// @fullstackfamily/manseryeok: 절기 기반 만세력 + 진태양시 보정
+import {
+  calculateSaju as libCalculateSaju,
+  lunarToSolar,
+} from "@fullstackfamily/manseryeok";
 import type { SajuInputForm, SajuData, SajuPillar } from "@/types";
 
-// ─── 한자 → 한글 변환 맵 ─────────────────────────────────────────
-const GAN_KO: Record<string, string> = {
-  甲: "갑",
-  乙: "을",
-  丙: "병",
-  丁: "정",
-  戊: "무",
-  己: "기",
-  庚: "경",
-  辛: "신",
-  壬: "임",
-  癸: "계",
-};
-const ZHI_KO: Record<string, string> = {
-  子: "자",
-  丑: "축",
-  寅: "인",
-  卯: "묘",
-  辰: "진",
-  巳: "사",
-  午: "오",
-  未: "미",
-  申: "신",
-  酉: "유",
-  戌: "술",
-  亥: "해",
-};
-
-/** "甲子" 형식의 간지 문자열 → { cheongan, jiji } */
-function parseGanZhi(gz: string): SajuPillar {
+/** "갑자" 형식의 두 글자 한글 간지 → { cheongan, jiji } */
+function parsePillar(pillar: string): SajuPillar {
   return {
-    cheongan: GAN_KO[gz[0]] ?? gz[0],
-    jiji: ZHI_KO[gz[1]] ?? gz[1],
+    cheongan: pillar[0] ?? "",
+    jiji: pillar[1] ?? "",
   };
 }
 
 /**
  * 사주 입력 폼으로부터 사주팔자 계산
  *
- * lunar-javascript 사용:
- * - 음력 입력 → Solar.fromYmd 후 getLunar() (음력 객체 직접 생성 가능)
- * - 연주/월주: 절기(입춘) 기준으로 정확하게 계산됨
- * - 일주: getYearInGanZhi / getMonthInGanZhi / getDayInGanZhi
- * - 시주: Solar.fromYmdHms → getLunar().getTimeInGanZhi("HH:MM")
+ * @fullstackfamily/manseryeok calculateSaju 사용:
+ * - 년주/월주/일주/시주 모두 라이브러리에서 계산
+ * - 진태양시 보정 자동 적용 (서울 경도 127°)
+ * - 음력 입력: lunarToSolar로 양력 변환 후 전달
  */
 export function calculateSaju(input: SajuInputForm): SajuData {
   const [y, m, d] = input.birth_date.split("-").map(Number);
 
-  let solar: ReturnType<typeof Solar.fromYmd>;
+  let solarYear = y;
+  let solarMonth = m;
+  let solarDay = d;
 
-  if (input.is_solar) {
-    solar = Solar.fromYmd(y, m, d);
-  } else {
-    // 음력 → 양력 변환: Lunar 객체를 양력으로 역산
-    const lunar = Lunar.fromYmd(y, m, d);
-    solar = lunar.getSolar();
+  if (!input.is_solar) {
+    const converted = lunarToSolar(y, m, d);
+    solarYear = converted.solar.year;
+    solarMonth = converted.solar.month;
+    solarDay = converted.solar.day;
   }
 
-  const lunar = solar.getLunar();
+  let hour: number | undefined;
+  let minute: number | undefined;
 
-  const yearPillar = parseGanZhi(lunar.getYearInGanZhi());
-  const monthPillar = parseGanZhi(lunar.getMonthInGanZhi());
-  const dayPillar = parseGanZhi(lunar.getDayInGanZhi());
-
-  let hourPillar: SajuPillar | null = null;
   if (!input.birth_time_unknown && input.birth_time) {
-    const [hour, min] = input.birth_time.split(":").map(Number);
-    const solarWithTime = Solar.fromYmdHms(
-      solar.getYear(),
-      solar.getMonth(),
-      solar.getDay(),
-      hour,
-      min ?? 0,
-      0,
-    );
-    const lunarWithTime = solarWithTime.getLunar();
-    const hh = String(hour).padStart(2, "0");
-    const mm = String(min ?? 0).padStart(2, "0");
-    hourPillar = parseGanZhi(lunarWithTime.getTimeInGanZhi(`${hh}:${mm}`));
+    const parts = input.birth_time.split(":").map(Number);
+    hour = parts[0];
+    minute = parts[1] ?? 0;
   }
+
+  const result = libCalculateSaju(
+    solarYear,
+    solarMonth,
+    solarDay,
+    hour,
+    minute,
+  );
 
   return {
-    year_pillar: yearPillar,
-    month_pillar: monthPillar,
-    day_pillar: dayPillar,
-    hour_pillar: hourPillar,
+    year_pillar: parsePillar(result.yearPillar),
+    month_pillar: parsePillar(result.monthPillar),
+    day_pillar: parsePillar(result.dayPillar),
+    hour_pillar: result.hourPillar ? parsePillar(result.hourPillar) : null,
+    raw: {
+      yearPillar: result.yearPillar,
+      yearPillarHanja: result.yearPillarHanja,
+      monthPillar: result.monthPillar,
+      monthPillarHanja: result.monthPillarHanja,
+      dayPillar: result.dayPillar,
+      dayPillarHanja: result.dayPillarHanja,
+      hourPillar: result.hourPillar ?? null,
+      hourPillarHanja: result.hourPillarHanja ?? null,
+      isTimeCorrected: result.isTimeCorrected,
+      correctedTime: result.correctedTime,
+    },
   };
 }
 
@@ -98,10 +79,17 @@ export function formatSajuForPrompt(
   saju: SajuData,
   input: SajuInputForm,
 ): string {
+  const birthTimeStr = input.birth_time_unknown
+    ? "모름"
+    : input.birth_time
+      ? input.birth_time
+      : "모름";
+
   const lines = [
     `이름: ${input.name}`,
     `성별: ${input.gender === "male" ? "남성" : "여성"}`,
     `생년월일: ${input.birth_date} (${input.is_solar ? "양력" : "음력"})`,
+    `태어난 시간: ${birthTimeStr}`,
     ``,
     `사주팔자:`,
     `- 년주(年柱): ${saju.year_pillar.cheongan}${saju.year_pillar.jiji}`,

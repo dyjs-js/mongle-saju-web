@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { CompatibilityResult } from "@/services/openai";
+import MarkdownContent from "@/components/ui/MarkdownContent";
 
 const BG = "linear-gradient(160deg, #FFF0F5 0%, #F8F9FF 50%, #F3EEFF 100%)";
 
@@ -63,6 +64,9 @@ export default function CompatibilityResultPage() {
   const [data, setData] = useState<CompatibilityData | null>(null);
   const [saving, setSaving] = useState(false);
   const [animated, setAnimated] = useState(false);
+  const [testContent, setTestContent] = useState<string | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
+  const isDev = process.env.NODE_ENV === "development";
 
   useEffect(() => {
     const raw = sessionStorage.getItem("compatibility_result");
@@ -133,6 +137,34 @@ export default function CompatibilityResultPage() {
       alert("이미지 저장에 실패했어요.");
     }
     setSaving(false);
+  }
+
+  function fetchTest() {
+    if (!data) return;
+    setTestContent(null);
+    setTestLoading(true);
+    // 궁합 결과 데이터를 saju input 형태로 변환해서 test API 호출
+    const input = {
+      name: `${data.me.name} ❤️ ${data.partner.name}`,
+      birth_date: data.me.birth_date,
+      gender: data.me.gender,
+      is_solar: true,
+      birth_time: "11:00",
+      birth_time_unknown: false,
+      concerns: ["전체운"] as const,
+    };
+    fetch("/api/saju", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input, type: "test" }),
+    })
+      .then((res) => res.json())
+      .then((d) => {
+        if (d.error) throw new Error(d.error);
+        setTestContent(d.content);
+      })
+      .catch((err) => alert("테스트 오류: " + err.message))
+      .finally(() => setTestLoading(false));
   }
 
   if (!data) return null;
@@ -736,6 +768,52 @@ export default function CompatibilityResultPage() {
             다른 궁합 보기 →
           </Link>
         </div>
+
+        {/* ── 🧪 테스트 모드 (dev only) ── */}
+        {isDev && (
+          <div
+            className="mt-4 rounded-3xl p-5 flex flex-col gap-3"
+            style={{
+              background: "rgba(255,230,100,0.12)",
+              border: "1.5px dashed rgba(200,160,0,0.35)",
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base">🧪</span>
+              <p className="text-sm font-bold" style={{ color: "#7A5F00" }}>
+                테스트 프롬프트 (dev only)
+              </p>
+            </div>
+            <p className="text-xs" style={{ color: "#9B8520" }}>
+              물상론·심리학·상담 통찰 포맷 — gpt-4o-mini
+            </p>
+            <button
+              onClick={fetchTest}
+              disabled={testLoading}
+              className="w-full font-bold py-3 rounded-2xl text-sm transition-all active:scale-95 disabled:opacity-60"
+              style={{
+                background: "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)",
+                color: "#3A2A00",
+                boxShadow: "0 2px 12px rgba(255,180,0,0.30)",
+              }}
+            >
+              {testLoading ? "⏳ 생성 중..." : "🧪 테스트 풀이 생성"}
+            </button>
+            {testContent && (
+              <div
+                className="rounded-2xl p-4"
+                style={{
+                  background: "rgba(255,255,255,0.85)",
+                  border: "1px solid rgba(200,160,0,0.2)",
+                  maxHeight: 500,
+                  overflowY: "auto",
+                }}
+              >
+                <MarkdownContent content={testContent} />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );
