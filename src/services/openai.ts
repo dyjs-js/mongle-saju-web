@@ -1,10 +1,10 @@
-import OpenAI from "openai";
 import type { SajuData, SajuInputForm } from "@/types";
 import { formatSajuForPrompt } from "./saju";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+async function getGemini() {
+  const { GoogleGenAI } = await import("@google/genai");
+  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+}
 
 const TEST_PROMPT = (
   year: number,
@@ -119,9 +119,24 @@ const RELATIONSHIP_REPORT_PROMPT = (
 }
 `;
 
-const FREE_SYSTEM_PROMPT = (year: number, month: number, name: string) =>
+const FREE_SYSTEM_PROMPT = (
+  year: number,
+  month: number,
+  name: string,
+  raw: import("@/types").SajuRawResult,
+  gender: string,
+) =>
   `당신은 '몽글사주'의 AI 상담사입니다. 
 **현재 시점은 ${year}년 ${month}월입니다.** 모든 분석은 ${year}년을 기준으로 진행하세요.
+
+**[⚠️ 사주 원국 — 절대 변경 금지]**
+아래 @fullstackfamily/manseryeok 라이브러리가 계산한 만세력 데이터를 그대로 사용하세요.
+임의 재계산 금지. 일간은 반드시 **${raw.dayPillar[0]}(${raw.dayPillarHanja[0]})** 입니다.
+- 성별: ${gender}
+- 년주: ${raw.yearPillarHanja} (${raw.yearPillar})
+- 월주: ${raw.monthPillarHanja} (${raw.monthPillar})
+- 일주: ${raw.dayPillarHanja} (${raw.dayPillar})
+- 시주: ${raw.hourPillarHanja ?? "미상"} (${raw.hourPillar ?? "미상"})${raw.isTimeCorrected && raw.correctedTime ? `\n- 진태양시 보정 적용: ${raw.correctedTime.hour}시 ${raw.correctedTime.minute}분 기준` : ""}
 
 [당신의 유일한 목표]
 유저가 "어, 이거 나 얘기잖아? 뒤에 더 있어?" 라고 말하게 만드세요.
@@ -234,6 +249,8 @@ const PAID_SYSTEM_PROMPT = (
   year: number,
   month: number,
   name: string,
+  raw: import("@/types").SajuRawResult,
+  gender: string,
   concerns?: SajuInputForm["concerns"],
 ) =>
   `당신은 '몽글사주'의 수석 명리 상담사입니다. 
@@ -241,6 +258,15 @@ const PAID_SYSTEM_PROMPT = (
 
 [호칭 규칙]
 - 반드시 **${name}님**으로 호칭하세요. "귀하", "당신" 같은 표현은 절대 사용 금지.
+
+**[⚠️ 사주 원국 — 절대 변경 금지]**
+아래 @fullstackfamily/manseryeok 라이브러리가 계산한 만세력 데이터를 그대로 사용하세요.
+임의 재계산 금지. 일간은 반드시 **${raw.dayPillar[0]}(${raw.dayPillarHanja[0]})** 입니다.
+- 성별: ${gender}
+- 년주: ${raw.yearPillarHanja} (${raw.yearPillar})
+- 월주: ${raw.monthPillarHanja} (${raw.monthPillar})
+- 일주: ${raw.dayPillarHanja} (${raw.dayPillar})
+- 시주: ${raw.hourPillarHanja ?? "미상"} (${raw.hourPillar ?? "미상"})${raw.isTimeCorrected && raw.correctedTime ? `\n- 진태양시 보정 적용: ${raw.correctedTime.hour}시 ${raw.correctedTime.minute}분 기준` : ""}
 
 ${buildSectionGuide(year, name, concerns ?? [])}
 
@@ -308,65 +334,65 @@ export async function generateFreeReading(
   saju: SajuData,
   input: SajuInputForm,
 ): Promise<string> {
+  const ai = await getGemini();
   const sajuInfo = formatSajuForPrompt(saju, input);
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
+  const gender = input.gender === "male" ? "남성" : "여성";
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "system",
-        content: FREE_SYSTEM_PROMPT(currentYear, currentMonth, input.name),
-      },
-      {
-        role: "user",
-        content: `⚠️ 현재 시점: ${currentYear}년 ${currentMonth}월입니다. 반드시 ${currentYear}년을 기준으로 분석하고, ${currentYear - 1}년 이전 연도는 절대 언급하지 마세요.\n\n유저 정보:\n${sajuInfo}`,
-      },
-    ],
-    temperature: 0.8,
-    max_tokens: 600,
+  const systemPrompt = FREE_SYSTEM_PROMPT(
+    currentYear,
+    currentMonth,
+    input.name,
+    saju.raw,
+    gender,
+  );
+  const userPrompt = `⚠️ 현재 시점: ${currentYear}년 ${currentMonth}월입니다. 반드시 ${currentYear}년을 기준으로 분석하고, ${currentYear - 1}년 이전 연도는 절대 언급하지 마세요.\n\n유저 추가 정보:\n${sajuInfo}`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash-preview-04-17",
+    contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n---\n\n${userPrompt}` }] }],
+    config: {
+      temperature: 0.8,
+      maxOutputTokens: 1200,
+    },
   });
 
-  return (
-    completion.choices[0]?.message?.content ??
-    "사주 풀이를 생성하지 못했습니다."
-  );
+  return response.text ?? "사주 풀이를 생성하지 못했습니다.";
 }
 
 export async function generatePaidReading(
   saju: SajuData,
   input: SajuInputForm,
 ): Promise<string> {
+  const ai = await getGemini();
   const sajuInfo = formatSajuForPrompt(saju, input);
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
+  const gender = input.gender === "male" ? "남성" : "여성";
+
   const systemPrompt = PAID_SYSTEM_PROMPT(
     currentYear,
     currentMonth,
     input.name,
+    saju.raw,
+    gender,
     input.concerns ?? [],
   );
+  const userPrompt = `⚠️ 현재 시점: ${currentYear}년 ${currentMonth}월입니다. 반드시 ${currentYear}년을 기준으로 분석하고, ${currentYear - 1}년 이전 연도는 절대 언급하지 마세요. 미래운은 ${currentYear}년 하반기부터 시작하세요.\n\n유저 추가 정보:\n${sajuInfo}`;
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      { role: "system", content: systemPrompt },
-      {
-        role: "user",
-        content: `⚠️ 현재 시점: ${currentYear}년 ${currentMonth}월입니다. 반드시 ${currentYear}년을 기준으로 분석하고, ${currentYear - 1}년 이전 연도는 절대 언급하지 마세요. 미래운은 ${currentYear}년 하반기부터 시작하세요.\n\n유저 정보:\n${sajuInfo}`,
-      },
-    ],
-    temperature: 0.85,
-    max_tokens: 8000,
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash-preview-04-17",
+    contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n---\n\n${userPrompt}` }] }],
+    config: {
+      temperature: 0.85,
+      maxOutputTokens: 12000,
+    },
   });
 
-  return (
-    completion.choices[0]?.message?.content ??
-    "사주 풀이를 생성하지 못했습니다."
-  );
+  return response.text ?? "사주 풀이를 생성하지 못했습니다.";
 }
 
 /** @deprecated generateFreeReading / generatePaidReading 을 사용하세요 */
@@ -382,21 +408,20 @@ export async function generateCompatibilityReading(
   user2: { name: string; ilju: string },
   relationship: string,
 ): Promise<string> {
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "user",
-        content: RELATIONSHIP_REPORT_PROMPT(user1, user2, relationship),
-      },
-    ],
-    temperature: 0.5,
-    max_tokens: 400,
-    response_format: { type: "json_object" }, // JSON 모드 강제
+  const ai = await getGemini();
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash-preview-04-17",
+    contents: [{ role: "user", parts: [{ text: RELATIONSHIP_REPORT_PROMPT(user1, user2, relationship) }] }],
+    config: {
+      responseMimeType: "application/json",
+      temperature: 0.5,
+      maxOutputTokens: 800,
+    },
   });
-  const raw = completion.choices[0]?.message?.content ?? "{}";
+  const rawText = response.text ?? "{}";
   // 캐시 저장/전달을 위해 정규화된 JSON string 반환
-  return JSON.stringify(parseCompatibilityJson(raw));
+  return JSON.stringify(parseCompatibilityJson(rawText));
 }
 
 /** 테스트 버전 — Gemini (물상론/심리학/상담통찰 JSON 구조 응답) */
@@ -404,8 +429,7 @@ export async function generateTestReading(
   saju: SajuData,
   input: SajuInputForm,
 ): Promise<string> {
-  const { GoogleGenAI } = await import("@google/genai");
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+  const ai = await getGemini();
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -415,7 +439,7 @@ export async function generateTestReading(
   const prompt = TEST_PROMPT(currentYear, currentMonth, saju.raw, gender);
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-2.5-flash-preview-04-17",
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     config: {
       responseMimeType: "application/json",

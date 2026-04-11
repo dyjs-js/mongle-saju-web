@@ -42,9 +42,7 @@ const components: Components = {
       {children}
     </em>
   ),
-  ul: ({ children }) => (
-    <ul className="space-y-1 mb-2 pl-1">{children}</ul>
-  ),
+  ul: ({ children }) => <ul className="space-y-1 mb-2 pl-1">{children}</ul>,
   ol: ({ children }) => (
     <ol className="space-y-1 mb-2 pl-1 list-decimal list-inside">{children}</ol>
   ),
